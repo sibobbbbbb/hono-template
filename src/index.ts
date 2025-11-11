@@ -1,4 +1,3 @@
-import { serve } from "@hono/node-server";
 import { Hono } from "hono";
 import { pinoLogger } from "hono-pino";
 import { logger } from "@/shared/configs/logger";
@@ -37,7 +36,7 @@ app.onError(errorHandler);
 
 logger.info(`Server is running on http://localhost:${env.PORT}`);
 
-serve({
+export default {
   fetch: app.fetch,
   port: env.PORT,
-});
+};

@@ -11,7 +11,7 @@
 <p align="center">
     <a href="#"><img alt="License: ISC" src="https://img.shields.io/badge/License-ISC-blue.svg"></a>
     <a href="#"><img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-5.x-blue.svg"></a>
-    <a href="#"><img alt="Node.js" src="https://img.shields.io/badge/Node.js-18.x+-green.svg"></a>
+    <a href="#"><img alt="Bun" src="https://img.shields.io/badge/Bun-1.x-black?logo=bun&logoColor=white"></a>
 </p>
 
 ---
@@ -45,7 +45,7 @@ This template provides a solid foundation for building modern, high-performance 
 | **Database** | [PostgreSQL](https://www.postgresql.org/) |
 | **ORM** | [Drizzle ORM](https://orm.drizzle.team/) |
 | **Language** | [TypeScript](https://www.typescriptlang.org/) |
-| **Runtime** | [Node.js](https://nodejs.org/) |
+| **Runtime** | [Bun](https://bun.sh/) |
 | **Environment** | [Dotenv](https://github.com/motdotla/dotenv), [Zod](https://zod.dev/) |
 | **Containerization** | [Docker](https://www.docker.com/) |
 
@@ -81,7 +81,7 @@ Follow these steps to get the project up and running on your local machine.
 
 ### Prerequisites
 
-- [Node.js](https://nodejs.org/) (v18 or higher)
+- [Bun](https://bun.sh/) (v1.x)
 - [Docker](https://www.docker.com/) and Docker Compose
 
 ### 1. Clone the Repository
@@ -94,7 +94,7 @@ cd hono-template
 ### 2. Install Dependencies
 
 ```bash
-npm install
+bun install
 ```
 
 ### 3. Set Up Environment Variables
@@ -126,7 +126,7 @@ The `.env` file requires the following variables:
 Run the PostgreSQL database using Docker Compose.
 
 ```bash
-docker-compose up -d
+docker compose up -d
 ```
 
 This command will start a PostgreSQL container in the background.
@@ -136,7 +136,7 @@ This command will start a PostgreSQL container in the background.
 Apply the database schema to your newly created database.
 
 ```bash
-npm run db:migrate
+bun run db:migrate
 ```
 
 This command executes the SQL migration files located in the `/drizzle` directory.
@@ -146,7 +146,7 @@ This command executes the SQL migration files located in the `/drizzle` director
 Start the development server with hot-reloading.
 
 ```bash
-npm run dev
+bun run dev
 ```
 
 The server will be running on http://localhost:3000 (or the PORT you specify in your .env file)
@@ -155,14 +155,14 @@ The server will be running on http://localhost:3000 (or the PORT you specify in 
 
 | Script | Description |
 |--------|-------------|
-| `npm run dev` | Starts the application in development mode with hot-reloading using tsx |
-| `npm run build` | Compiles the TypeScript code to JavaScript in the `/dist` directory |
-| `npm run start` | Starts the compiled application from the `/dist` directory (for production) |
-| `npm run db:generate` | Generates a new SQL migration file based on changes in your schema |
-| `npm run db:migrate` | Applies all pending migrations to the database |
-| `npm run db:push` | Pushes schema changes directly to the database without creating a migration file |
+| `bun run dev` | Starts the application in development mode with hot-reloading using tsx |
+| `bun run build` | Compiles the TypeScript code to JavaScript in the `/dist` directory |
+| `bun run start` | Starts the compiled application from the `/dist` directory (for production) |
+| `bun run db:generate` | Generates a new SQL migration file based on changes in your schema |
+| `bun run db:migrate` | Applies all pending migrations to the database |
+| `bun run db:push` | Pushes schema changes directly to the database without creating a migration file |
 
-> **Note**: `npm run db:push` is for rapid prototyping only. Not recommended for production.
+> **Note**: `bun run db:push` is for rapid prototyping only. Not recommended for production.
 
 ## 💅 Code Quality & Formatting
 
@@ -175,9 +175,9 @@ You can use the following scripts to manage your code's quality:
 
 | Script | Description |
 |---|---|
-| `npm run lint` | Lints all TypeScript files in the `src` directory and reports issues. |
-| `npm run lint:fix` | Automatically fixes all auto-fixable linting issues. |
-| `npm run format` | Formats all TypeScript files in the `src` directory using Prettier. |
+| `bun run lint` | Lints all TypeScript files in the `src` directory and reports issues. |
+| `bun run lint:fix` | Automatically fixes all auto-fixable linting issues. |
+| `bun run format` | Formats all TypeScript files in the `src` directory using Prettier. |
 
 ### Recommended VS Code Extensions
 

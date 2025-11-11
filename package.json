@@ -4,9 +4,9 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "dev": "tsx watch src/index.ts",
+    "dev": "bun run --hot src/index.ts",
     "build": "tsc",
-    "start": "node -r tsconfig-paths/register dist/index.js",
+    "start": "bun run dist/index.js",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write \"src/**/*.ts\"",
