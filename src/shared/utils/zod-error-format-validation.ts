@@ -1,33 +1,26 @@
-import { ZodError, z } from "zod";
+import { z } from "zod";
+import type { $ZodError } from "zod/v4/core";
 
 /**
- * Formats Zod validation errors into a structured object.
+ * Formats a Zod validation error into a flat `{ field: message }` object.
  *
- * This function takes a ZodError instance and converts it into a more
- * readable format, extracting the first error message for each field.
+ * Uses Zod v4's `flattenError`, which returns `fieldErrors` keyed by field
+ * name; we surface the first message per field for a concise API response.
  *
- * @param error The ZodError instance to format.
- * @returns An object containing a message and an errors object with field-specific messages.
+ * @param error The Zod error produced by a failed `safeParse`.
+ * @returns `{ message, errors }` where `errors` maps each field to its first message.
  */
-export const formatZodError = (error: ZodError) => {
-    const errorTree = z.treeifyError(error);
-    const errorTreeAny = errorTree as Record<string, unknown>;
+export const formatZodError = <T>(error: $ZodError<T>) => {
+	const { fieldErrors } = z.flattenError(error);
 
-    const errors = Object.fromEntries(
-        Object.keys(errorTreeAny).map((key) => {
-        if (key !== '_errors') {
-            const node = errorTreeAny[key] as { _errors?: string[] };
-            return [
-                key,
-                node?._errors?.[0] ?? "Invalid value",
-            ];
-        }
-            return [];
-        }).filter(entry => entry.length > 0)
-    );
+	const errors: Record<string, string> = {};
+	for (const [field, messages] of Object.entries(fieldErrors)) {
+		const list = messages as string[] | undefined;
+		errors[field] = list?.[0] ?? "Invalid value";
+	}
 
-    return {
-        message: "Validation failed",
-        errors,
-    };
+	return {
+		message: "Validation failed",
+		errors,
+	};
 };
