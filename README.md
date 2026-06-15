@@ -5,189 +5,217 @@
 </p>
 
 <p align="center">
-    <strong>A robust, scalable, and production-ready backend template built with Hono, Drizzle ORM, and PostgreSQL.</strong>
+    <strong>An ultrafast, type-safe, production-ready API template built with Hono, Bun, and Drizzle ORM — with end-to-end RPC types.</strong>
 </p>
 
 <p align="center">
     <a href="#"><img alt="License: ISC" src="https://img.shields.io/badge/License-ISC-blue.svg"></a>
     <a href="#"><img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-5.x-blue.svg"></a>
     <a href="#"><img alt="Bun" src="https://img.shields.io/badge/Bun-1.x-black?logo=bun&logoColor=white"></a>
+    <a href="#"><img alt="Biome" src="https://img.shields.io/badge/Biome-2.x-60a5fa?logo=biome&logoColor=white"></a>
 </p>
 
 ---
 
-This template provides a solid foundation for building modern, high-performance APIs. It comes with a complete authentication system, secure best practices, and a clean, modular architecture that's easy to extend.
+A solid foundation for modern, high-performance APIs. It ships with a complete
+authentication system (refresh-token rotation), secure-by-default middleware, a
+clean modular architecture, and a fully typed RPC client.
 
 ## ✨ Features
 
-- **🚀 Modern Tech Stack**: [Hono](https://hono.dev/) for the web framework and [Drizzle ORM](https://orm.drizzle.team/) for the database layer
-- **🔐 Full Authentication Flow**: Secure JWT-based authentication with Access Tokens and Refresh Tokens
-- **🛡️ Secure by Default**:
-    - Refresh Tokens are stored in secure `HttpOnly` cookies
-    - Hashing of refresh tokens in the database
-    - `secureHeaders` middleware for HTTP security headers
-    - Rate limiting for sensitive endpoints
-- **🏗️ Modular Architecture**: Feature-based structure for high cohesion and scalability
-- **🗄️ Database Ready**: PostgreSQL setup with Docker and migrations handled by Drizzle Kit
-- **🔒 Type Safety**: End-to-end type safety with TypeScript and Drizzle's auto-inferred types
-- **⚙️ Configuration Management**: Environment variable validation with Zod
-- **⚡ Robust Error Handling**: Standardized error responses and a global error handler
-- **👨‍💻 Developer Experience**:
-    - `pino-pretty` for readable logs in development
-    - Path aliases (`@/*`) for clean imports
-    - Detailed JSDoc comments across the codebase
+- **⚡ Bun-native** — runtime, package manager, and test runner. No build step in development.
+- **🔒 Type-safe everywhere** — `@hono/zod-validator` yields `c.req.valid()` with **zero casts**; routes are chained so a typed [RPC client](#-typed-rpc-client) is exported for free.
+- **🏗️ Layered & functional** — `route → service → repository`. Services are factory functions (trivial to unit-test, no DI container).
+- **🔐 Secure auth** — argon2id password hashing (`Bun.password`), access token in the body, refresh token in an `HttpOnly` `SameSite=Strict` cookie, **full-length SHA-256** refresh-token hashing, and **rotation + reuse-detection**.
+- **🛡️ Hardened defaults** — `secureHeaders`, CORS, body-size limit, request id, IP-aware rate limiting, Zod-validated env, and a centralized error handler with severity-aware logging (4xx → `warn`, 5xx → `error`).
+- **🗄️ Drizzle ORM** — PostgreSQL with migrations and auto-inferred types; sensitive columns are projected away at the data layer.
+- **🧹 Biome** — lint + format in a single fast binary.
+- **✅ Tests** — `bun:test`, no extra dependencies.
 
 ## 🛠️ Tech Stack
 
-| Category | Technology |
-|----------|------------|
-| **Framework** | [Hono](https://hono.dev/) |
-| **Database** | [PostgreSQL](https://www.postgresql.org/) |
-| **ORM** | [Drizzle ORM](https://orm.drizzle.team/) |
-| **Language** | [TypeScript](https://www.typescriptlang.org/) |
-| **Runtime** | [Bun](https://bun.sh/) |
-| **Environment** | [Dotenv](https://github.com/motdotla/dotenv), [Zod](https://zod.dev/) |
-| **Containerization** | [Docker](https://www.docker.com/) |
+| Category        | Technology                                            |
+| --------------- | ----------------------------------------------------- |
+| **Runtime**     | [Bun](https://bun.sh/)                                |
+| **Framework**   | [Hono](https://hono.dev/)                             |
+| **Database**    | [PostgreSQL](https://www.postgresql.org/)             |
+| **ORM**         | [Drizzle ORM](https://orm.drizzle.team/)              |
+| **Validation**  | [Zod](https://zod.dev/) v4 + `@hono/zod-validator`    |
+| **Auth**        | `hono/jwt`, `Bun.password` (argon2id)                 |
+| **Logging**     | `pino` + `hono-pino`                                  |
+| **Lint/Format** | [Biome](https://biomejs.dev/)                         |
+| **Tests**       | `bun:test`                                            |
+| **Container**   | [Docker](https://www.docker.com/)                     |
 
 ## 📂 Project Structure
 
-This project uses a feature-based (or modular) architecture. The goal is to group code by its domain or feature, making the codebase easier to navigate, maintain, and scale.
+A feature-based (modular) architecture — code is grouped by domain for cohesion and scalability.
 
 ```
 /
-├── drizzle/              # Drizzle Kit migration files
+├── drizzle/                 # Drizzle Kit migration files
 └── src/
-    ├── container/        # Dependency Injection container
-    ├── modules/          # Core feature modules (e.g., auth, users)
-    │   ├── auth/         # Authentication feature
-    │   ├── health/       # Health check feature
-    │   └── user/         # User feature
-    ├── routes/           # Main API router to aggregate all modules
-    ├── shared/           # Code shared across modules
-    │   ├── configs/      # Application configurations (db, logger, env)
-    │   ├── exceptions/   # Custom error classes and global handler
-    │   ├── middlewares/  # Middleware functions (e.g., auth, rate limiting)
-    │   ├── models/       # Database model types (inferred from Drizzle)
-    │   ├── repositories/ # Data access layer (Repository Pattern)
-    │   └── utils/        # Utility and helper functions
-    └── index.ts          # Main application entry point
+    ├── index.ts             # App entry: middleware, router mount, AppType export
+    ├── routes/              # Aggregates module routers under /api
+    ├── modules/             # Core feature modules
+    │   ├── auth/            # auth.route · auth.service · auth.schemas · auth.token.helper
+    │   ├── health/          # Health check
+    │   └── user/            # User feature
+    ├── shared/
+    │   ├── configs/         # environment (Zod-validated), database, logger
+    │   ├── exceptions/      # ApiError hierarchy + global error handler
+    │   ├── middlewares/     # auth (JWT), rate-limiter, validator (zValidator wrapper)
+    │   ├── models/          # Drizzle-inferred types (User, NewUser, SafeUser)
+    │   ├── repositories/    # Data access layer (Repository Pattern)
+    │   └── utils/           # api-response, cookie-helper, ...
+    └── types/               # Ambient typings (e.g. jwtPayload context variable)
 ```
 
----
+**Request flow:** the route handler validates input and shapes the response →
+the **service** holds business logic → the **repository** talks to the DB.
+Handlers stay thin so their types compose into the exported `AppType`.
 
 ## 🚀 Getting Started
 
-Follow these steps to get the project up and running on your local machine.
-
 ### Prerequisites
 
-- [Bun](https://bun.sh/) (v1.x)
-- [Docker](https://www.docker.com/) and Docker Compose
+- [Bun](https://bun.sh/) ≥ 1.2
+- [Docker](https://www.docker.com/) and Docker Compose (or your own PostgreSQL)
 
-### 1. Clone the Repository
+### Steps
 
 ```bash
+# 1. Clone
 git clone https://github.com/sibobbbbbb/hono-template.git
 cd hono-template
-```
 
-### 2. Install Dependencies
-
-```bash
+# 2. Install dependencies
 bun install
-```
 
-### 3. Set Up Environment Variables
+# 3. Configure environment
+cp .env.example .env        # then edit the secrets
 
-Create a `.env` file in the root of the project by copying the example file.
-
-```bash
-cp .env.example .env
-```
-
-The `.env` file requires the following variables:
-
-| Variable | Description | Default Value |
-|----------|-------------|---------------|
-| `POSTGRES_USER` | PostgreSQL database username | `hono` |
-| `POSTGRES_PASSWORD` | PostgreSQL database password | `honopassword` |
-| `POSTGRES_DB` | PostgreSQL database name | `honodb` |
-| `DB_PORT` | Port for the database connection | `5432` |
-| `JWT_SECRET` | Secret key for signing Access Tokens | `..._secret` |
-| `JWT_EXPIRES_IN` | Expiration time for Access Tokens (e.g., 15m) | `15m` |
-| `JWT_REFRESH_SECRET` | Secret key for signing Refresh Tokens | `..._secret` |
-| `JWT_REFRESH_EXPIRES_IN` | Expiration time for Refresh Tokens (e.g., 7d) | `7d` |
-| `JWT_REFRESH_COOKIE_NAME` | Name of the cookie storing the refresh token | `refreshToken` |
-| `NODE_ENV` | Application environment | `development` |
-| `PORT` | Port on which the server will run | `3000` |
-
-### 4. Start the Database
-
-Run the PostgreSQL database using Docker Compose.
-
-```bash
+# 4. Start PostgreSQL
 docker compose up -d
-```
 
-This command will start a PostgreSQL container in the background.
+# 5. Apply the schema
+bun run db:push             # or: bun run db:generate && bun run db:migrate
 
-### 5. Run Database Migrations
-
-Apply the database schema to your newly created database.
-
-```bash
-bun run db:migrate
-```
-
-This command executes the SQL migration files located in the `/drizzle` directory.
-
-### 6. Run the Application
-
-Start the development server with hot-reloading.
-
-```bash
+# 6. Run the dev server (hot reload)
 bun run dev
 ```
 
-The server will be running on http://localhost:3000 (or the PORT you specify in your .env file)
+The server runs on `http://localhost:3000` (or your `PORT`).
 
-## 📜 Available Scripts
+## 🔑 Environment Variables
 
-| Script | Description |
-|--------|-------------|
-| `bun run dev` | Starts the application in development mode with hot-reloading using tsx |
-| `bun run build` | Compiles the TypeScript code to JavaScript in the `/dist` directory |
-| `bun run start` | Starts the compiled application from the `/dist` directory (for production) |
-| `bun run db:generate` | Generates a new SQL migration file based on changes in your schema |
-| `bun run db:migrate` | Applies all pending migrations to the database |
-| `bun run db:push` | Pushes schema changes directly to the database without creating a migration file |
+Validated at startup by [`src/shared/configs/environment`](src/shared/configs/environment/index.ts) — the app refuses to boot on misconfiguration.
 
-> **Note**: `bun run db:push` is for rapid prototyping only. Not recommended for production.
+| Variable                  | Default        | Description                                  |
+| ------------------------- | -------------- | -------------------------------------------- |
+| `POSTGRES_USER`           | —              | Database user (required)                     |
+| `POSTGRES_PASSWORD`       | —              | Database password (required)                 |
+| `POSTGRES_DB`             | —              | Database name (required)                     |
+| `DB_HOST`                 | `localhost`    | Database host                                |
+| `DB_PORT`                 | `5432`         | Database port                                |
+| `JWT_SECRET`              | —              | Access-token secret (required)               |
+| `JWT_EXPIRES_IN`          | `15m`          | Access-token lifetime                        |
+| `JWT_REFRESH_SECRET`      | —              | Refresh-token secret (required)              |
+| `JWT_REFRESH_EXPIRES_IN`  | `7d`           | Refresh-token lifetime                       |
+| `JWT_REFRESH_COOKIE_NAME` | `refreshToken` | Refresh-token cookie name                    |
+| `NODE_ENV`                | `development`  | `development` \| `production` \| `test`      |
+| `CORS_ORIGIN`             | `*`            | Allowed CORS origin (set explicitly in prod) |
+| `PORT`                    | `3000`         | Server port                                  |
 
-## 💅 Code Quality & Formatting
+## 📡 API Endpoints
 
-This project is configured with **ESLint** and **Prettier** to ensure high code quality and a consistent coding style.
+| Method | Path                 | Auth | Description                            |
+| ------ | -------------------- | ---- | -------------------------------------- |
+| GET    | `/api/health`        | —    | Liveness probe                         |
+| POST   | `/api/auth/register` | —    | Register a new user                    |
+| POST   | `/api/auth/login`    | —    | Log in; sets refresh cookie            |
+| POST   | `/api/auth/refresh`  | 🍪   | Rotate tokens using the refresh cookie |
+| POST   | `/api/auth/logout`   | ✅   | Revoke the refresh token               |
+| GET    | `/api/users/profile` | ✅   | Get the current user's profile         |
 
-- **ESLint**: Linter for identifying and fixing problems in your TypeScript code.
-- **Prettier**: An opinionated code formatter to maintain a consistent style.
+✅ = `Authorization: Bearer <accessToken>` · 🍪 = refresh-token cookie
 
-You can use the following scripts to manage your code's quality:
+## 🔐 Authentication
 
-| Script | Description |
-|---|---|
-| `bun run lint` | Lints all TypeScript files in the `src` directory and reports issues. |
-| `bun run lint:fix` | Automatically fixes all auto-fixable linting issues. |
-| `bun run format` | Formats all TypeScript files in the `src` directory using Prettier. |
+- **Passwords** are hashed with **argon2id** via `Bun.password`.
+- **Access tokens** (short-lived) are returned in the JSON body; send them as `Authorization: Bearer <token>`.
+- **Refresh tokens** (long-lived) live in an `HttpOnly`, `SameSite=Strict` cookie scoped to `/api/auth`. The server stores only a **full-length SHA-256 hash** of the token (no bcrypt 72-byte truncation).
+- **Rotation + reuse-detection:** every `/refresh` issues a new token pair and stores the new hash. Presenting a stale (already-rotated) token revokes the stored token, forcing re-authentication.
 
-### Recommended VS Code Extensions
+## 🔗 Typed RPC Client
 
-For the best developer experience, it's recommended to install the following VS Code extensions:
+Because routes use chained, inline handlers, the app type is exported for the
+[Hono RPC client](https://hono.dev/docs/guides/rpc):
 
-- [ESLint](https://marketplace.visualstudio.com/items?itemName=dbaeumer.vscode-eslint)
-- [Prettier - Code formatter](https://marketplace.visualstudio.com/items?itemName=esbenp.prettier-vscode)
+```ts
+import { hc } from "hono/client";
+import type { AppType } from "./src";
 
-After installation, you can enable "Format on Save" in your editor settings to automatically format your code every time you save a file.
+const client = hc<AppType>("http://localhost:3000");
+
+const res = await client.api.auth.login.$post({
+  json: { email: "ada@example.com", password: "supersecret" },
+});
+// Request body and response are inferred from the Zod schema — no codegen.
+```
+
+## 📜 Scripts
+
+| Script                | Description                                  |
+| --------------------- | -------------------------------------------- |
+| `bun run dev`         | Dev server with hot reload                   |
+| `bun run start`       | Start the server                             |
+| `bun run build`       | Bundle to `dist/` (optional, for deployment) |
+| `bun run typecheck`   | Type-check with `tsc --noEmit`               |
+| `bun test`            | Run the test suite                           |
+| `bun run lint`        | Lint with Biome                              |
+| `bun run lint:fix`    | Lint + autofix + format                      |
+| `bun run format`      | Format with Biome                            |
+| `bun run db:generate` | Generate a Drizzle migration                 |
+| `bun run db:migrate`  | Apply migrations                             |
+| `bun run db:push`     | Push the schema directly (dev only)          |
+
+> **Note:** `db:push` is for rapid prototyping. Prefer `db:generate` + `db:migrate` in production.
+
+## ✅ Testing
+
+```bash
+bun test
+```
+
+Tests use `bun:test` (no extra dependencies). Services are unit-tested with an
+in-memory fake repository, and the HTTP layer is exercised end-to-end via
+`app.request()` — no running server or database required.
+
+## 💅 Code Quality
+
+This project uses **[Biome](https://biomejs.dev/)** for both linting and
+formatting (replacing ESLint + Prettier with a single fast binary).
+
+```bash
+bun run lint       # check
+bun run lint:fix   # autofix + format
+```
+
+> **VS Code:** install the [Biome extension](https://marketplace.visualstudio.com/items?itemName=biomejs.biome) and enable "Format on Save".
+
+## ☁️ Runtime Notes
+
+Bun-native and runs on Node-like servers. For a true edge deployment (e.g.
+Cloudflare Workers) a few runtime-bound pieces would need swapping:
+
+- `Bun.password` (argon2id) and `getConnInfo` from `hono/bun` → a WASM hasher + the platform's conninfo helper.
+- `postgres` (TCP) → an HTTP driver such as `drizzle-orm/neon-http`.
+- `pino-pretty` transport (dev only) → a console logger.
+
+The rate limiter uses an in-memory store (fine for a single instance). For
+multi-instance / serverless, plug in a shared store such as Redis.
 
 ## ⚖️ License
 
-This project is licensed under the ISC License. See the LICENSE file for details.
+This project is licensed under the ISC License. See the [LICENSE](LICENSE) file for details.
