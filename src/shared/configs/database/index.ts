@@ -15,11 +15,11 @@ import * as schema from "./schema";
 
 // Create a Postgres client
 const client = postgres({
-  host: env.DB_HOST,
-  port: env.DB_PORT,
-  user: env.POSTGRES_USER,
-  password: env.POSTGRES_PASSWORD,
-  database: env.POSTGRES_DB,
+	host: env.DB_HOST,
+	port: env.DB_PORT,
+	user: env.POSTGRES_USER,
+	password: env.POSTGRES_PASSWORD,
+	database: env.POSTGRES_DB,
 });
 
 // Initialize the database connection with the schema
