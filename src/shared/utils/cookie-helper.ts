@@ -1,6 +1,6 @@
-import { env } from "@/shared/configs/environment";
-import { Context } from "hono";
+import type { Context } from "hono";
 import { setCookie } from "hono/cookie";
+import { env } from "@/shared/configs/environment";
 import { parseJwtExpiresIn } from "./parse-jwt-expires-in";
 
 /**
@@ -14,10 +14,10 @@ import { parseJwtExpiresIn } from "./parse-jwt-expires-in";
 const REFRESH_TOKEN_COOKIE_NAME = env.JWT_REFRESH_COOKIE_NAME || "refreshToken";
 
 const cookieOptions = {
-    httpOnly: true,
-    secure: env.NODE_ENV === "production",
-    sameSite: "Strict" as const,
-    path: "/api/auth",
+	httpOnly: true,
+	secure: env.NODE_ENV === "production",
+	sameSite: "Strict" as const,
+	path: "/api/auth",
 };
 
 /**
@@ -26,10 +26,10 @@ const cookieOptions = {
  * @param token Refresh token to be set.
  */
 export const setRefreshTokenCookie = (c: Context, token: string) => {
-    setCookie(c,REFRESH_TOKEN_COOKIE_NAME, token, {
-        ...cookieOptions,
-        maxAge: parseJwtExpiresIn(env.JWT_REFRESH_EXPIRES_IN),
-    });
+	setCookie(c, REFRESH_TOKEN_COOKIE_NAME, token, {
+		...cookieOptions,
+		maxAge: parseJwtExpiresIn(env.JWT_REFRESH_EXPIRES_IN),
+	});
 };
 
 /**
@@ -37,8 +37,8 @@ export const setRefreshTokenCookie = (c: Context, token: string) => {
  * @param c Hono Context object.
  */
 export const clearRefreshTokenCookie = (c: Context) => {
-    setCookie(c,REFRESH_TOKEN_COOKIE_NAME, "", {
-        ...cookieOptions,
-        expires: new Date(0),
-    });
+	setCookie(c, REFRESH_TOKEN_COOKIE_NAME, "", {
+		...cookieOptions,
+		expires: new Date(0),
+	});
 };

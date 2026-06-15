@@ -1,17 +1,11 @@
-import { createMiddleware } from "hono/factory";
 import { jwt } from "hono/jwt";
 import { env } from "@/shared/configs/environment";
 
 /**
- * Authentication middleware using JWT.
+ * JWT authentication middleware.
  *
- * Verifies the `Authorization: Bearer <token>` header in the request.
- * If the token is valid, it attaches the payload to `c.get('jwtPayload')`.
- * If the token is invalid or missing, it throws an Unauthorized error.
+ * Verifies the `Authorization: Bearer <token>` header and attaches the decoded
+ * payload to `c.get("jwtPayload")`. Constructed once at module load (the JWT
+ * middleware is reused across requests, not rebuilt per request).
  */
-export const authMiddleware = createMiddleware(async (c, next) => {
-  const jwtMiddleware = jwt({
-    secret: env.JWT_SECRET,
-  });
-  return jwtMiddleware(c, next);
-});
+export const authMiddleware = jwt({ secret: env.JWT_SECRET });

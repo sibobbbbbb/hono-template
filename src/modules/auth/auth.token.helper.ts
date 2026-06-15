@@ -1,45 +1,49 @@
 import { sign, verify } from "hono/jwt";
-import * as bcrypt from "bcrypt";
 import { env } from "@/shared/configs/environment";
-import { parseJwtExpiresIn } from "@/shared/utils/parse-jwt-expires-in";
 import { ForbiddenError } from "@/shared/exceptions/api-error";
+import { parseJwtExpiresIn } from "@/shared/utils/parse-jwt-expires-in";
 
 /**
  * Define the type for payload that will be included in the token.
  */
 export type TokenPayload = {
-  sub: number;
-  name: string;
+	sub: number;
+	name: string;
 };
 
 /**
- * Generates access token and refresh token.
+ * Generates an access token and a refresh token.
+ *
+ * Each token carries a unique `jti` (token id) so that two tokens minted for
+ * the same user within the same second are still distinct — which is what
+ * makes refresh-token rotation and reuse-detection reliable.
+ *
  * @param payload Data to be included in the token (sub, name).
  * @returns Object containing accessToken and refreshToken.
  */
 export const generateTokens = async (payload: TokenPayload) => {
-  // Create access token
-  const accessToken = await sign(
-    {
-      ...payload,
-      exp:
-        Math.floor(Date.now() / 1000) + parseJwtExpiresIn(env.JWT_EXPIRES_IN),
-    },
-    env.JWT_SECRET
-  );
+	const accessToken = await sign(
+		{
+			...payload,
+			jti: crypto.randomUUID(),
+			exp:
+				Math.floor(Date.now() / 1000) + parseJwtExpiresIn(env.JWT_EXPIRES_IN),
+		},
+		env.JWT_SECRET,
+	);
 
-  // Create refresh token
-  const refreshToken = await sign(
-    {
-      ...payload,
-      exp:
-        Math.floor(Date.now() / 1000) +
-        parseJwtExpiresIn(env.JWT_REFRESH_EXPIRES_IN),
-    },
-    env.JWT_REFRESH_SECRET
-  );
+	const refreshToken = await sign(
+		{
+			...payload,
+			jti: crypto.randomUUID(),
+			exp:
+				Math.floor(Date.now() / 1000) +
+				parseJwtExpiresIn(env.JWT_REFRESH_EXPIRES_IN),
+		},
+		env.JWT_REFRESH_SECRET,
+	);
 
-  return { accessToken, refreshToken };
+	return { accessToken, refreshToken };
 };
 
 /**
@@ -49,23 +53,35 @@ export const generateTokens = async (payload: TokenPayload) => {
  * @throws {ForbiddenError} If token is invalid or expired.
  */
 export const verifyRefreshToken = async (
-  token: string
+	token: string,
 ): Promise<TokenPayload> => {
-  try {
-    return (await verify(
-      token,
-      env.JWT_REFRESH_SECRET
-    )) as unknown as TokenPayload;
-  } catch (_error) {
-    throw new ForbiddenError("Refresh token is invalid or expired");
-  }
+	try {
+		return (await verify(
+			token,
+			env.JWT_REFRESH_SECRET,
+		)) as unknown as TokenPayload;
+	} catch (_error) {
+		throw new ForbiddenError("Refresh token is invalid or expired");
+	}
 };
 
 /**
- * Hashes a refresh token using bcrypt.
+ * Hashes a refresh token with a full-length SHA-256 digest (Web Crypto).
+ *
+ * Unlike bcrypt (which silently truncates input at 72 bytes and is designed
+ * for slow hashing of *low-entropy* secrets like passwords), a JWT refresh
+ * token is already high-entropy — so a fast cryptographic digest over its
+ * entire length is both correct and runtime-portable (Bun/Node/edge).
+ *
  * @param token Refresh token string to be hashed.
- * @returns A promise that resolves to the hashed token.
+ * @returns A promise that resolves to the hex-encoded SHA-256 digest.
  */
 export const hashRefreshToken = async (token: string): Promise<string> => {
-  return bcrypt.hash(token, 10);
+	const digest = await crypto.subtle.digest(
+		"SHA-256",
+		new TextEncoder().encode(token),
+	);
+	return Array.from(new Uint8Array(digest))
+		.map((b) => b.toString(16).padStart(2, "0"))
+		.join("");
 };

@@ -1,110 +1,104 @@
-import * as bcrypt from "bcrypt";
+import type {
+	LoginRequest,
+	RegisterRequest,
+} from "@/modules/auth/auth.schemas";
 import {
-  ConflictError,
-  UnauthorizedError,
+	ConflictError,
+	ForbiddenError,
+	UnauthorizedError,
 } from "@/shared/exceptions/api-error";
-import { User } from "@/shared/models/user.model";
-import { LoginRequest, RegisterRequest } from "@/modules/auth/auth.schemas";
-import { UserRepository } from "@/shared/repositories/user.repository";
+import type { User } from "@/shared/models/user.model";
+import type { UserRepository } from "@/shared/repositories/user.repository";
 import {
-  generateTokens,
-  hashRefreshToken,
-  verifyRefreshToken,
-  TokenPayload,
+	generateTokens,
+	hashRefreshToken,
+	verifyRefreshToken,
 } from "./auth.token.helper";
-import { ForbiddenError } from "@/shared/exceptions/api-error";
 
 /**
- * @class AuthService
- * Contains the core business logic for authentication. This service
- * is responsible for user registration, password verification, token generation,
- * and handling the refresh token mechanism securely.
+ * Creates the authentication service.
+ *
+ * A factory (not a class) so its dependency is injected explicitly and the
+ * service can be unit-tested with a fake repository — no DI container needed.
+ *
+ * @param userRepository The user repository to back the service.
  */
-export class AuthService {
-  constructor(private userRepository: UserRepository) {}
+export const createAuthService = (userRepository: UserRepository) => ({
+	/** Registers a new user with an argon2id-hashed password. */
+	async register(requestData: RegisterRequest): Promise<User> {
+		const existingUser = await userRepository.findByEmail(requestData.email);
+		if (existingUser) {
+			throw new ConflictError("User with this email already exists");
+		}
 
-  /**
-   * Registers a new user.
-   */
-  public async register(requestData: RegisterRequest): Promise<User> {
-    const existingUser = await this.userRepository.findByEmail(
-      requestData.email
-    );
-    if (existingUser) {
-      throw new ConflictError("User with this email already exists");
-    }
+		const password = await Bun.password.hash(requestData.password, {
+			algorithm: "argon2id",
+		});
 
-    const hashedPassword = await bcrypt.hash(requestData.password, 10);
-    const dataToInsert = {
-      name: requestData.name,
-      email: requestData.email,
-      password: hashedPassword,
-    };
+		return userRepository.create({
+			name: requestData.name,
+			email: requestData.email,
+			password,
+		});
+	},
 
-    const newUser = await this.userRepository.create(dataToInsert);
+	/** Verifies credentials and issues a fresh access/refresh token pair. */
+	async login(requestData: LoginRequest) {
+		const user = await userRepository.findByEmail(requestData.email);
+		if (!user) {
+			throw new UnauthorizedError("Invalid email or password");
+		}
 
-    return newUser;
-  }
+		const isValid = await Bun.password.verify(
+			requestData.password,
+			user.password,
+		);
+		if (!isValid) {
+			throw new UnauthorizedError("Invalid email or password");
+		}
 
-  /**
-   * Logs in a user and generates access and refresh tokens.
-   */
-  public async login(
-    requestData: LoginRequest
-  ): Promise<{ accessToken: string; refreshToken: string }> {
-    const user = await this.userRepository.findByEmail(requestData.email);
-    if (!user) {
-      throw new UnauthorizedError("Invalid email or password");
-    }
+		const tokens = await generateTokens({ sub: user.id, name: user.name });
+		await userRepository.updateRefreshToken(
+			user.id,
+			await hashRefreshToken(tokens.refreshToken),
+		);
 
-    const isPasswordValid = await bcrypt.compare(
-      requestData.password,
-      user.password
-    );
-    if (!isPasswordValid) {
-      throw new UnauthorizedError("Invalid email or password");
-    }
+		return tokens;
+	},
 
-    const payload: TokenPayload = { sub: user.id, name: user.name };
-    const { accessToken, refreshToken } = await generateTokens(payload);
+	/**
+	 * Validates a refresh token, rotates it, and returns a new token pair.
+	 *
+	 * If the provided token's hash does not match the stored one (possible
+	 * reuse of a rotated/leaked token), the stored token is revoked to force
+	 * re-authentication.
+	 */
+	async refreshToken(providedRefreshToken: string) {
+		const payload = await verifyRefreshToken(providedRefreshToken);
+		const user = await userRepository.findById(payload.sub);
+		if (!user?.refreshToken) {
+			throw new ForbiddenError("Access Denied");
+		}
 
-    const hashedToken = await hashRefreshToken(refreshToken);
-    await this.userRepository.updateRefreshToken(user.id, hashedToken);
+		const providedHash = await hashRefreshToken(providedRefreshToken);
+		if (providedHash !== user.refreshToken) {
+			await userRepository.updateRefreshToken(user.id, null);
+			throw new ForbiddenError("Access Denied");
+		}
 
-    return { accessToken, refreshToken };
-  }
+		const tokens = await generateTokens({ sub: user.id, name: user.name });
+		await userRepository.updateRefreshToken(
+			user.id,
+			await hashRefreshToken(tokens.refreshToken),
+		);
 
-  /**
-   * Refreshes the access token using a valid refresh token.
-   */
-  public async refreshToken(
-    providedRefreshToken: string
-  ): Promise<{ accessToken: string }> {
-    const payload = await verifyRefreshToken(providedRefreshToken);
-    const userInDb = await this.userRepository.findById(payload.sub);
+		return tokens;
+	},
 
-    if (!userInDb || !userInDb.refreshToken) {
-      throw new ForbiddenError("Access Denied");
-    }
+	/** Clears the stored refresh token, invalidating the session. */
+	async logout(userId: number): Promise<void> {
+		await userRepository.updateRefreshToken(userId, null);
+	},
+});
 
-    const isMatch = await bcrypt.compare(
-      providedRefreshToken,
-      userInDb.refreshToken
-    );
-    if (!isMatch) {
-      throw new ForbiddenError("Access Denied");
-    }
-
-    const newPayload: TokenPayload = { sub: userInDb.id, name: userInDb.name };
-    const { accessToken } = await generateTokens(newPayload);
-
-    return { accessToken };
-  }
-
-  /**
-   * Logs out a user by removing their refresh token.
-   */
-  public async logout(userId: number): Promise<void> {
-    await this.userRepository.updateRefreshToken(userId, null);
-  }
-}
+export type AuthService = ReturnType<typeof createAuthService>;
