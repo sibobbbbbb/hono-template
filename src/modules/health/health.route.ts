@@ -1,17 +1,12 @@
-import { Hono } from 'hono';
+import { Hono } from "hono";
 
 /**
- * @file Health check route.
+ * @file Health check route (`/api/health`).
  *
- * This file defines a simple health check endpoint that responds with
- * a JSON object indicating the API's status. It can be used to monitor
- * the API's availability and basic functionality.
+ * A simple liveness endpoint for uptime monitoring and load-balancer probes.
  */
-
-const healthRouter = new Hono();
-
-healthRouter.get('/', (c) => {
-  return c.json({ status: 'ok', message: 'API is healthy!' });
-});
+const healthRouter = new Hono().get("/", (c) =>
+	c.json({ status: "ok", message: "API is healthy!" }),
+);
 
 export default healthRouter;

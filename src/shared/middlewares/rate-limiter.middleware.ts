@@ -1,34 +1,38 @@
-import { rateLimiter } from 'hono-rate-limiter';
-import { Context } from 'hono';
+import type { Context } from "hono";
+import { getConnInfo } from "hono/bun";
+import { rateLimiter } from "hono-rate-limiter";
 
 /**
- * Key generator function to extract the client's IP address.
- * @param c - Hono context
- * @returns User's IP address or 'unknown' string if not found.
+ * Derives a rate-limit key from the client IP.
+ *
+ * Takes only the first hop of `x-forwarded-for` (the closest client) and
+ * falls back to the connection's remote address. NOTE: `x-forwarded-for` is
+ * client-controlled — only trust it behind a proxy you operate.
  */
-const keyGenerator = (c: Context) => {
-    const ip = c.req.header('x-forwarded-for') || c.req.header('x-real-ip');
-    
-    return ip || 'unknown_ip'; 
+const keyGenerator = (c: Context): string => {
+	const forwarded = c.req.header("x-forwarded-for")?.split(",")[0]?.trim();
+	return forwarded || getConnInfo(c).remote.address || "unknown_ip";
 };
 
-
 /**
- * Rate limiter configuration for sensitive endpoints like login and register.
+ * Strict limiter for sensitive endpoints (login, register).
+ *
+ * Uses the default in-memory store — correct for a single instance. For
+ * multi-instance / serverless deployments, plug in a shared store (e.g. Redis)
+ * so the count is consistent across processes.
  */
 export const authLimiter = rateLimiter({
-    windowMs: 15 * 60 * 1000,
-    limit: 5,
-    message: 'Too many authentication attempts from this IP, please try again after 15 minutes',
-    keyGenerator: keyGenerator,
+	windowMs: 15 * 60 * 1000,
+	limit: 5,
+	message:
+		"Too many authentication attempts from this IP, please try again after 15 minutes",
+	keyGenerator,
 });
 
-/**
- * General rate limiter configuration for most APIs.
- */
+/** General limiter for most API endpoints. */
 export const generalApiLimiter = rateLimiter({
-    windowMs: 60 * 1000,
-    limit: 100,
-    message: 'Too many requests, please slow down.',
-    keyGenerator: keyGenerator,
+	windowMs: 60 * 1000,
+	limit: 100,
+	message: "Too many requests, please slow down.",
+	keyGenerator,
 });
