@@ -1,4 +1,4 @@
-import { usersTable } from "@/shared/configs/database/schema";
+import type { usersTable } from "@/shared/configs/database/schema";
 
 /**
  * User model type definitions.

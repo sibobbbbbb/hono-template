@@ -1,62 +1,57 @@
+import { eq } from "drizzle-orm";
 import { db } from "@/shared/configs/database";
 import { usersTable } from "@/shared/configs/database/schema";
-import { NewUser, User } from "@/shared/models/user.model";
-import { eq } from "drizzle-orm";
+import { InternalServerError } from "@/shared/exceptions/api-error";
+import type { NewUser, SafeUser, User } from "@/shared/models/user.model";
 
 /**
  * @class UserRepository
  *
- * This class implements the Repository Pattern for the User entity.
- * It abstracts all database interactions related to users, providing a clean
- * API for services to use without needing to know the underlying ORM (Drizzle)
- * or database schema details.
+ * Implements the Repository Pattern for the User entity, abstracting all
+ * database interactions behind a clean API. Sensitive columns are projected
+ * away at this layer (see `findSafeById`) so the password hash and refresh
+ * token never leak out by default.
  */
 export class UserRepository {
-  /**
-   * Creates a new user in the database.
-   * @param data Data for new user (name, email, hashed password).
-   * @returns The newly created User object.
-   */
-  public async create(data: NewUser): Promise<User> {
-    const [newUser] = await db.insert(usersTable).values(data).returning();
+	/** Creates a new user and returns the inserted row. */
+	public async create(data: NewUser): Promise<User> {
+		const [newUser] = await db.insert(usersTable).values(data).returning();
+		if (!newUser) {
+			throw new InternalServerError("Failed to create user");
+		}
+		return newUser;
+	}
 
-    return newUser;
-  }
+	/** Finds a single user by email (includes sensitive columns — for auth only). */
+	public findByEmail(email: string): Promise<User | undefined> {
+		return db.query.usersTable.findFirst({
+			where: eq(usersTable.email, email),
+		});
+	}
 
-  /**
-   * Finds a single user by email address.
-   * @param email User's email address.
-   * @returns User object if found, or undefined.
-   */
-  public async findByEmail(email: string): Promise<User | undefined> {
-    return await db.query.usersTable.findFirst({
-      where: eq(usersTable.email, email),
-    });
-  }
+	/** Finds a single user by id (includes sensitive columns — for auth only). */
+	public findById(id: number): Promise<User | undefined> {
+		return db.query.usersTable.findFirst({
+			where: eq(usersTable.id, id),
+		});
+	}
 
-  /**
-   * Finds a user by their unique ID.
-   * @param id User's unique identifier.
-   * @returns User object if found, or undefined.
-   */
-  public async findById(id: number): Promise<User | undefined> {
-    return await db.query.usersTable.findFirst({
-      where: eq(usersTable.id, id),
-    });
-  }
+	/** Finds a user by id with sensitive columns stripped at the data layer. */
+	public findSafeById(id: number): Promise<SafeUser | undefined> {
+		return db.query.usersTable.findFirst({
+			where: eq(usersTable.id, id),
+			columns: { password: false, refreshToken: false },
+		});
+	}
 
-  /**
-   * Updates the refresh token for a user.
-   * @param userId User's unique identifier.
-   * @param refreshToken New refresh token to set, or null to remove it.
-   */
-  public async updateRefreshToken(
-    userId: number,
-    refreshToken: string | null
-  ): Promise<void> {
-    await db
-      .update(usersTable)
-      .set({ refreshToken })
-      .where(eq(usersTable.id, userId));
-  }
+	/** Sets (or clears, with `null`) the stored refresh-token hash for a user. */
+	public async updateRefreshToken(
+		userId: number,
+		refreshToken: string | null,
+	): Promise<void> {
+		await db
+			.update(usersTable)
+			.set({ refreshToken })
+			.where(eq(usersTable.id, userId));
+	}
 }
