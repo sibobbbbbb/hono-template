@@ -83,4 +83,21 @@ describe("http layer (integration)", () => {
 		// First 5 are normal failures (401); the 6th exceeds the limit (429).
 		expect(statuses).toContain(429);
 	});
+
+	it("serves the OpenAPI spec (including mounted routes) at /openapi", async () => {
+		const res = await app.request("/openapi");
+		expect(res.status).toBe(200);
+		const spec = (await res.json()) as {
+			openapi?: string;
+			paths?: Record<string, unknown>;
+		};
+		expect(spec.openapi).toBeDefined();
+		expect(spec.paths?.["/api/auth/login"]).toBeDefined();
+	});
+
+	it("serves the Scalar docs UI at /docs", async () => {
+		const res = await app.request("/docs");
+		expect(res.status).toBe(200);
+		expect(res.headers.get("content-type")).toContain("text/html");
+	});
 });
