@@ -1,0 +1,11 @@
+# Git hooks (https://lefthook.dev). Installed on `bun install` via the
+# "prepare" script, or manually with `bunx lefthook install`.
+pre-commit:
+  parallel: true
+  commands:
+    biome:
+      glob: "*.{ts,tsx,js,jsonc,json}"
+      run: bunx biome check --write --no-errors-on-unmatched {staged_files}
+      stage_fixed: true
+    typecheck:
+      run: bun run typecheck
