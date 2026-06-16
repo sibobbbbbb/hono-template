@@ -10,6 +10,7 @@ import { UnauthorizedError } from "@/shared/exceptions/api-error";
 import { authMiddleware } from "@/shared/middlewares/auth.middleware";
 import { authLimiter } from "@/shared/middlewares/rate-limiter.middleware";
 import { jsonValidator } from "@/shared/middlewares/validator";
+import { toSafeUser } from "@/shared/models/user.model";
 import { UserRepository } from "@/shared/repositories/user.repository";
 import { sendSuccess } from "@/shared/utils/api-response";
 import {
@@ -34,12 +35,12 @@ const authRouter = new Hono()
 		async (c) => {
 			const data = c.req.valid("json");
 			const user = await authService.register(data);
-			const {
-				password: _password,
-				refreshToken: _refreshToken,
-				...safeUser
-			} = user;
-			return sendSuccess(c, 201, "User registered successfully", safeUser);
+			return sendSuccess(
+				c,
+				201,
+				"User registered successfully",
+				toSafeUser(user),
+			);
 		},
 	)
 	.post("/login", authLimiter, jsonValidator(LoginRequestSchema), async (c) => {
@@ -58,8 +59,8 @@ const authRouter = new Hono()
 		return sendSuccess(c, 200, "Token refreshed successfully", { accessToken });
 	})
 	.post("/logout", authMiddleware, async (c) => {
-		const { sub: userId } = c.get("jwtPayload");
-		await authService.logout(userId);
+		const { sub } = c.get("jwtPayload");
+		await authService.logout(Number(sub));
 		clearRefreshTokenCookie(c);
 		return sendSuccess(c, 200, "Logout successful");
 	});

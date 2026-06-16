@@ -14,3 +14,9 @@ export type User = typeof usersTable.$inferSelect;
 export type NewUser = typeof usersTable.$inferInsert;
 
 export type SafeUser = Omit<User, "password" | "refreshToken">;
+
+/** Returns a client-safe view of a user (password and refresh token removed). */
+export const toSafeUser = (user: User): SafeUser => {
+	const { password: _password, refreshToken: _refreshToken, ...safe } = user;
+	return safe;
+};

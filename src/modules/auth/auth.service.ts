@@ -57,7 +57,10 @@ export const createAuthService = (userRepository: UserRepository) => ({
 			throw new UnauthorizedError("Invalid email or password");
 		}
 
-		const tokens = await generateTokens({ sub: user.id, name: user.name });
+		const tokens = await generateTokens({
+			sub: String(user.id),
+			name: user.name,
+		});
 		await userRepository.updateRefreshToken(
 			user.id,
 			await hashRefreshToken(tokens.refreshToken),
@@ -75,7 +78,7 @@ export const createAuthService = (userRepository: UserRepository) => ({
 	 */
 	async refreshToken(providedRefreshToken: string) {
 		const payload = await verifyRefreshToken(providedRefreshToken);
-		const user = await userRepository.findById(payload.sub);
+		const user = await userRepository.findById(Number(payload.sub));
 		if (!user?.refreshToken) {
 			throw new ForbiddenError("Access Denied");
 		}
@@ -86,7 +89,10 @@ export const createAuthService = (userRepository: UserRepository) => ({
 			throw new ForbiddenError("Access Denied");
 		}
 
-		const tokens = await generateTokens({ sub: user.id, name: user.name });
+		const tokens = await generateTokens({
+			sub: String(user.id),
+			name: user.name,
+		});
 		await userRepository.updateRefreshToken(
 			user.id,
 			await hashRefreshToken(tokens.refreshToken),

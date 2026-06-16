@@ -8,7 +8,7 @@ export {};
 declare module "hono" {
 	interface ContextVariableMap {
 		jwtPayload: {
-			sub: number;
+			sub: string;
 			name: string;
 		};
 	}

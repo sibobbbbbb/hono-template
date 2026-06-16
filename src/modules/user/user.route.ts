@@ -17,7 +17,7 @@ const userRouter = new Hono()
 	.use("*", authMiddleware)
 	.use("*", generalApiLimiter)
 	.get("/profile", async (c) => {
-		const { sub: userId } = c.get("jwtPayload");
+		const userId = Number(c.get("jwtPayload").sub);
 		const profile = await userService.getMyProfile(userId);
 		return sendSuccess(c, 200, "Profile fetched successfully", profile);
 	});

@@ -7,7 +7,8 @@ import { parseJwtExpiresIn } from "@/shared/utils/parse-jwt-expires-in";
  * Define the type for payload that will be included in the token.
  */
 export type TokenPayload = {
-	sub: number;
+	/** Subject — the user id as a string, per the JWT spec (RFC 7519). */
+	sub: string;
 	name: string;
 };
 
