@@ -1,0 +1,13 @@
+# Bun configuration. See https://bun.sh/docs/runtime/bunfig
+
+[test]
+# Runs once before the suite: applies migrations to an in-memory PGlite
+# database and redirects the app's db singleton to it, so integration tests
+# need no real Postgres (and unit tests are isolated from any live DB).
+preload = ["./tests/setup.ts"]
+
+# Exclude *.test.ts files themselves from coverage numbers.
+coverageSkipTestFiles = true
+
+# Fail `bun test --coverage` if coverage drops below this fraction.
+coverageThreshold = 0.8
