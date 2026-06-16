@@ -184,13 +184,28 @@ const res = await client.api.auth.login.$post({
 
 ## ✅ Testing
 
-```bash
-bun test
+A clean split between fast unit tests and full integration tests, all on `bun:test`:
+
+- **Unit tests** live next to the code (`src/**/*.test.ts`). Pure functions and services are tested in isolation with an in-memory fake repository — no I/O.
+- **Integration tests** live in `tests/integration/`. They drive the real app via `app.request()` against an **in-memory PGlite database** (embedded Postgres), so the full `middleware → handler → service → repository → SQL` path runs with **no Docker and no external Postgres**. The schema is migrated once and tables are truncated between tests. Production code is untouched: `tests/setup.ts` redirects the app's `db` to PGlite via `mock.module` only during the test run.
+
+```
+tests/
+├─ setup.ts                    # preload: migrate PGlite + redirect the app's db to it
+├─ helpers/
+│  ├─ test-db.ts               # in-memory PGlite instance + migrate/reset
+│  ├─ fake-user-repository.ts  # in-memory repo + user factory for unit tests
+│  └─ auth.ts                  # HTTP helpers (register/login, auth headers)
+└─ integration/                # *.test.ts hitting the real app + DB
 ```
 
-Tests use `bun:test` (no extra dependencies). Services are unit-tested with an
-in-memory fake repository, and the HTTP layer is exercised end-to-end via
-`app.request()` — no running server or database required.
+| Command | Description |
+| ------- | ----------- |
+| `bun test` | Run the whole suite |
+| `bun run test:unit` | Unit tests only (`src`) |
+| `bun run test:integration` | Integration tests only |
+| `bun run test:watch` | Watch mode |
+| `bun run test:coverage` | Coverage report (gated at 80%) |
 
 ## 💅 Code Quality
 
