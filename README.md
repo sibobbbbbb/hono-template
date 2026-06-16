@@ -30,7 +30,9 @@ clean modular architecture, and a fully typed RPC client.
 - **🛡️ Hardened defaults** — `secureHeaders`, CORS, body-size limit, request id, IP-aware rate limiting, Zod-validated env, and a centralized error handler with severity-aware logging (4xx → `warn`, 5xx → `error`).
 - **🗄️ Drizzle ORM** — PostgreSQL with migrations and auto-inferred types; sensitive columns are projected away at the data layer.
 - **🧹 Biome** — lint + format in a single fast binary.
-- **✅ Tests** — `bun:test`, no extra dependencies.
+- **✅ Tests** — unit + integration on `bun:test`; integration runs against an in-memory **PGlite** database (no Docker).
+- **📖 OpenAPI docs** — every route is annotated; the spec is served at `/openapi` with an interactive **Scalar** UI at `/docs`.
+- **🚢 Ship-ready** — GitHub Actions CI, a multi-stage Dockerfile, graceful shutdown, and a database **readiness** probe.
 
 ## 🛠️ Tech Stack
 
@@ -118,6 +120,9 @@ Validated at startup by [`src/shared/configs/environment`](src/shared/configs/en
 | `POSTGRES_DB`             | —              | Database name (required)                     |
 | `DB_HOST`                 | `localhost`    | Database host                                |
 | `DB_PORT`                 | `5432`         | Database port                                |
+| `DATABASE_URL`            | —              | Optional connection string (overrides individual DB vars) |
+| `DB_SSL`                  | `false`        | Enable SSL (required by most managed Postgres) |
+| `DB_POOL_MAX`             | `10`           | Max connection pool size                     |
 | `JWT_SECRET`              | —              | Access-token secret (required)               |
 | `JWT_EXPIRES_IN`          | `15m`          | Access-token lifetime                        |
 | `JWT_REFRESH_SECRET`      | —              | Refresh-token secret (required)              |
@@ -132,11 +137,14 @@ Validated at startup by [`src/shared/configs/environment`](src/shared/configs/en
 | Method | Path                 | Auth | Description                            |
 | ------ | -------------------- | ---- | -------------------------------------- |
 | GET    | `/api/health`        | —    | Liveness probe                         |
+| GET    | `/api/health/ready`  | —    | Readiness probe (checks the database)  |
 | POST   | `/api/auth/register` | —    | Register a new user                    |
 | POST   | `/api/auth/login`    | —    | Log in; sets refresh cookie            |
 | POST   | `/api/auth/refresh`  | 🍪   | Rotate tokens using the refresh cookie |
 | POST   | `/api/auth/logout`   | ✅   | Revoke the refresh token               |
 | GET    | `/api/users/profile` | ✅   | Get the current user's profile         |
+| GET    | `/openapi`           | —    | OpenAPI 3.1 spec (JSON)                |
+| GET    | `/docs`              | —    | Interactive API docs (Scalar UI)       |
 
 ✅ = `Authorization: Bearer <accessToken>` · 🍪 = refresh-token cookie
 
@@ -230,6 +238,17 @@ Cloudflare Workers) a few runtime-bound pieces would need swapping:
 
 The rate limiter uses an in-memory store (fine for a single instance). For
 multi-instance / serverless, plug in a shared store such as Redis.
+
+## 🚢 Deployment
+
+A multi-stage [Dockerfile](Dockerfile) builds a lean, non-root production image (production dependencies only):
+
+```bash
+docker build -t hono-template .
+docker run --env-file .env -p 3000:3000 hono-template
+```
+
+CI ([.github/workflows/ci.yml](.github/workflows/ci.yml)) runs lint, type-check, and the test suite on every push and pull request. Run database migrations (`bun run db:migrate`) as a separate release step.
 
 ## ⚖️ License
 
