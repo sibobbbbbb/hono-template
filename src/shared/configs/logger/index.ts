@@ -26,7 +26,7 @@ const serializers = {
 
 // Logger configuration
 const options: pino.LoggerOptions = {
-	level: "info",
+	level: env.NODE_ENV === "test" ? "silent" : "info",
 	serializers: serializers,
 	formatters: {
 		level: (label: string) => ({

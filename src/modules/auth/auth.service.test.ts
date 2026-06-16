@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it } from "bun:test";
+import { createFakeUserRepository } from "@tests/helpers/fake-user-repository";
 import { createAuthService } from "@/modules/auth/auth.service";
 import { hashRefreshToken } from "@/modules/auth/auth.token.helper";
 import {
@@ -6,55 +7,7 @@ import {
 	ForbiddenError,
 	UnauthorizedError,
 } from "@/shared/exceptions/api-error";
-import type { NewUser, SafeUser, User } from "@/shared/models/user.model";
-import type { UserRepository } from "@/shared/repositories/user.repository";
-
-/**
- * An in-memory fake repository. Because the service is a factory that takes
- * its dependency as an argument, no mocking framework or DI container is
- * needed — we just pass a plain object that satisfies the repository shape.
- */
-const createFakeRepo = () => {
-	const users: User[] = [];
-	let nextId = 1;
-
-	const repo: UserRepository = {
-		async create(data: NewUser): Promise<User> {
-			const user: User = {
-				id: nextId++,
-				name: data.name,
-				email: data.email,
-				password: data.password,
-				refreshToken: data.refreshToken ?? null,
-				createdAt: new Date(),
-			};
-			users.push(user);
-			return user;
-		},
-		async findByEmail(email: string) {
-			return users.find((u) => u.email === email);
-		},
-		async findById(id: number) {
-			return users.find((u) => u.id === id);
-		},
-		async findSafeById(id: number): Promise<SafeUser | undefined> {
-			const user = users.find((u) => u.id === id);
-			if (!user) return undefined;
-			const {
-				password: _password,
-				refreshToken: _refreshToken,
-				...safe
-			} = user;
-			return safe;
-		},
-		async updateRefreshToken(id: number, token: string | null) {
-			const user = users.find((u) => u.id === id);
-			if (user) user.refreshToken = token;
-		},
-	};
-
-	return { repo, users };
-};
+import type { User } from "@/shared/models/user.model";
 
 const credentials = {
 	name: "Ada",
@@ -67,9 +20,9 @@ describe("createAuthService", () => {
 	let service: ReturnType<typeof createAuthService>;
 
 	beforeEach(() => {
-		const fake = createFakeRepo();
+		const fake = createFakeUserRepository();
 		users = fake.users;
-		service = createAuthService(fake.repo);
+		service = createAuthService(fake.repository);
 	});
 
 	describe("register", () => {
@@ -109,6 +62,12 @@ describe("createAuthService", () => {
 				service.login({ email: credentials.email, password: "wrong" }),
 			).rejects.toBeInstanceOf(UnauthorizedError);
 		});
+
+		it("rejects an unknown email", async () => {
+			await expect(
+				service.login({ email: "nobody@example.com", password: "whatever" }),
+			).rejects.toBeInstanceOf(UnauthorizedError);
+		});
 	});
 
 	describe("refreshToken", () => {
@@ -130,11 +89,11 @@ describe("createAuthService", () => {
 		});
 
 		it("denies and revokes on reuse of a rotated token", async () => {
-			await service.refreshToken(refreshToken); // rotate once
+			await service.refreshToken(refreshToken);
 			await expect(service.refreshToken(refreshToken)).rejects.toBeInstanceOf(
 				ForbiddenError,
 			);
-			expect(users[0]?.refreshToken).toBeNull(); // revoked
+			expect(users[0]?.refreshToken).toBeNull();
 		});
 	});
 
