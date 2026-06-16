@@ -14,6 +14,12 @@ describe("http layer (integration)", () => {
 		});
 	});
 
+	it("GET /api/health/ready -> 200 when the database is reachable", async () => {
+		const res = await app.request("/api/health/ready");
+		expect(res.status).toBe(200);
+		expect(await res.json()).toEqual({ status: "ready" });
+	});
+
 	it("GET / -> 200 welcome text", async () => {
 		const res = await app.request("/");
 		expect(res.status).toBe(200);

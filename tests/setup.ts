@@ -10,4 +10,7 @@ import { migrateTestDb, testDb } from "./helpers/test-db";
  */
 await migrateTestDb();
 
-mock.module("@/shared/configs/database", () => ({ db: testDb }));
+mock.module("@/shared/configs/database", () => ({
+	db: testDb,
+	closeDb: async () => {},
+}));

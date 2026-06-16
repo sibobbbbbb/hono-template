@@ -4,23 +4,32 @@ import { env } from "@/shared/configs/environment";
 import * as schema from "./schema";
 
 /**
- * Database connection configuration using Drizzle ORM.
+ * Database connection (Drizzle ORM + postgres-js).
  *
- * This file initializes the database connection using the Postgres client
- * and the schema defined in `./schema.ts`. It exports the `db` instance for
- * use throughout the application.
- *
- * @see https://orm.drizzle.team/kit-docs/config-reference
+ * Accepts either a single `DATABASE_URL` (recommended for managed/cloud
+ * Postgres) or the individual `POSTGRES_*` / `DB_*` variables. SSL and pool
+ * size are configurable — enable `DB_SSL` for managed providers
+ * (Neon / Supabase / RDS).
  */
+const connectionOptions = {
+	max: env.DB_POOL_MAX,
+	idle_timeout: 20,
+	connect_timeout: 10,
+	ssl: env.DB_SSL ? ("require" as const) : false,
+};
 
-// Create a Postgres client
-const client = postgres({
-	host: env.DB_HOST,
-	port: env.DB_PORT,
-	user: env.POSTGRES_USER,
-	password: env.POSTGRES_PASSWORD,
-	database: env.POSTGRES_DB,
-});
+const client = env.DATABASE_URL
+	? postgres(env.DATABASE_URL, connectionOptions)
+	: postgres({
+			host: env.DB_HOST,
+			port: env.DB_PORT,
+			user: env.POSTGRES_USER,
+			password: env.POSTGRES_PASSWORD,
+			database: env.POSTGRES_DB,
+			...connectionOptions,
+		});
 
-// Initialize the database connection with the schema
 export const db = drizzle(client, { schema });
+
+/** Closes the connection pool — used for graceful shutdown. */
+export const closeDb = () => client.end({ timeout: 5 });

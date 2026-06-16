@@ -20,6 +20,14 @@ const envSchema = z.object({
 	POSTGRES_DB: z.string().min(1, { message: "POSTGRES_DB cannot be empty" }),
 	DB_PORT: z.coerce.number().default(5432),
 	DB_HOST: z.string().default("localhost"),
+	// Optional single connection string; overrides the individual vars above.
+	DATABASE_URL: z.string().optional(),
+	// SSL is required by most managed Postgres (Neon/Supabase/RDS).
+	DB_SSL: z
+		.string()
+		.default("false")
+		.transform((v) => v === "true" || v === "1"),
+	DB_POOL_MAX: z.coerce.number().int().positive().default(10),
 
 	// JWT Credentials
 	JWT_SECRET: z.string().min(1, { message: "JWT_SECRET cannot be empty" }),
