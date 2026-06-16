@@ -61,23 +61,23 @@ app.get("/docs", Scalar({ url: "/openapi", pageTitle: "Hono API Template" }));
 
 app.onError(errorHandler);
 
+/** Exported for tests (`app.request(...)`) and the Hono RPC client type. */
+export { app };
+export type AppType = typeof app;
+
+// Serve only when run directly (not when imported by tests). An explicit
+// Bun.serve lets our signal handlers run for graceful shutdown — Bun's
+// auto-serve of a `default` export intercepts SIGTERM itself.
 if (import.meta.main) {
-	logger.info(`Server is running on http://localhost:${env.PORT}`);
+	const server = Bun.serve({ fetch: app.fetch, port: env.PORT });
+	logger.info(`Server running at ${server.url}`);
 
 	const shutdown = async (signal: string) => {
-		logger.info(`${signal} received — closing database and shutting down`);
+		logger.info(`${signal} received — shutting down gracefully`);
+		await server.stop(true);
 		await closeDb();
 		process.exit(0);
 	};
 	process.on("SIGTERM", () => void shutdown("SIGTERM"));
 	process.on("SIGINT", () => void shutdown("SIGINT"));
 }
-
-/** Exported for tests (`app.request(...)`) and the Hono RPC client type. */
-export { app };
-export type AppType = typeof app;
-
-export default {
-	fetch: app.fetch,
-	port: env.PORT,
-};
