@@ -1,5 +1,5 @@
-import { mock } from "bun:test";
-import { migrateTestDb, testDb } from "./helpers/test-db";
+import { afterAll, mock } from "bun:test";
+import { closeTestDb, migrateTestDb, testDb } from "./helpers/test-db";
 
 /**
  * Global test preload (configured in bunfig.toml).
@@ -14,3 +14,9 @@ mock.module("@/shared/configs/database", () => ({
 	db: testDb,
 	closeDb: async () => {},
 }));
+
+// Release the in-memory database once the whole run finishes so the test
+// process exits cleanly (an open PGlite handle makes Bun exit with code 99).
+afterAll(async () => {
+	await closeTestDb();
+});

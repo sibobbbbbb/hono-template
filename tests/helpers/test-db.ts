@@ -11,7 +11,9 @@ import * as schema from "@/shared/configs/database/schema";
  * redirects the `@/shared/configs/database` module to this instance, so no live
  * Postgres is required. Production code is untouched.
  */
-export const testDb = drizzle(new PGlite(), { schema });
+const client = new PGlite();
+
+export const testDb = drizzle(client, { schema });
 
 /** Applies the project's Drizzle migrations to the in-memory database. */
 export const migrateTestDb = () =>
@@ -21,3 +23,6 @@ export const migrateTestDb = () =>
 export const resetDb = async () => {
 	await testDb.execute(sql`TRUNCATE TABLE users RESTART IDENTITY CASCADE`);
 };
+
+/** Closes the database, releasing the resource so the test process exits cleanly. */
+export const closeTestDb = () => client.close();
