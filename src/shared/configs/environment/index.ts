@@ -40,6 +40,10 @@ const envSchema = z.object({
 	JWT_REFRESH_EXPIRES_IN: z.string().default("7d"),
 	JWT_REFRESH_COOKIE_NAME: z.string().default("refreshToken"),
 
+	// Optional Redis connection string. When set, rate-limit counters are stored
+	// in Redis (consistent across instances) instead of per-process memory.
+	REDIS_URL: z.string().optional(),
+
 	// App Environment
 	NODE_ENV: z
 		.enum(["development", "production", "test"])
