@@ -24,5 +24,42 @@ jobs:
       - name: Type-check
         run: bun run typecheck
 
-      - name: Test
+      - name: Test (unit + integration on PGlite)
         run: bun test
+
+  # Runs the same integration suite against a real Postgres to catch any
+  # divergence from the in-memory PGlite database used in the `quality` job.
+  integration-postgres:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U test -d test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      NODE_ENV: test
+      DATABASE_URL: postgres://test:test@localhost:5432/test
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Apply migrations to Postgres
+        run: bun run db:migrate
+
+      - name: Integration tests against Postgres
+        run: bun test tests/integration

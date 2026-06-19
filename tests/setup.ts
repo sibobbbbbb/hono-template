@@ -4,19 +4,20 @@ import { closeTestDb, migrateTestDb, testDb } from "./helpers/test-db";
 /**
  * Global test preload (configured in bunfig.toml).
  *
- * 1. Migrates the in-memory PGlite database once for the whole run.
- * 2. Redirects the app's database singleton to it, so the real repositories
- *    run their actual SQL against PGlite — no live Postgres, full isolation.
+ * Default (no DATABASE_URL): migrate an in-memory PGlite database once and
+ * redirect the app's db to it — fast, no external Postgres. When DATABASE_URL
+ * is set (the CI "integration-postgres" job), the mock is skipped so the same
+ * tests run against a real Postgres instead.
  */
-await migrateTestDb();
+if (!process.env.DATABASE_URL) {
+	await migrateTestDb();
 
-mock.module("@/shared/configs/database", () => ({
-	db: testDb,
-	closeDb: async () => {},
-}));
+	mock.module("@/shared/configs/database", () => ({
+		db: testDb,
+		closeDb: async () => {},
+	}));
 
-// Release the in-memory database once the whole run finishes so the test
-// process exits cleanly (an open PGlite handle makes Bun exit with code 99).
-afterAll(async () => {
-	await closeTestDb();
-});
+	afterAll(async () => {
+		await closeTestDb();
+	});
+}

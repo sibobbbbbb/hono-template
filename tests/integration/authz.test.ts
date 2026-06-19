@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it } from "bun:test";
 import { authHeaders, login, registerAndLogin } from "@tests/helpers/auth";
-import { resetDb, testDb } from "@tests/helpers/test-db";
+import { resetDb } from "@tests/helpers/test-db";
 import { app } from "@/index";
+import { db } from "@/shared/configs/database";
 import { usersTable } from "@/shared/configs/database/schema";
 
 beforeEach(resetDb);
@@ -19,7 +20,7 @@ describe("authorization (requireRole · /api/users)", () => {
 		const password = await Bun.password.hash("supersecret", {
 			algorithm: "argon2id",
 		});
-		await testDb.insert(usersTable).values({
+		await db.insert(usersTable).values({
 			name: "Root",
 			email: "root@example.com",
 			password,

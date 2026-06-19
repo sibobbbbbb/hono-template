@@ -7,17 +7,18 @@ import {
 	TEST_USER,
 	uniqueIp,
 } from "@tests/helpers/auth";
-import { resetDb, testDb } from "@tests/helpers/test-db";
+import { resetDb } from "@tests/helpers/test-db";
 import { eq } from "drizzle-orm";
 import { app } from "@/index";
 import { hashRefreshToken } from "@/modules/auth/auth.token.helper";
+import { db } from "@/shared/configs/database";
 import { sessionsTable, usersTable } from "@/shared/configs/database/schema";
 
 const findUser = (email: string) =>
-	testDb.query.usersTable.findFirst({ where: eq(usersTable.email, email) });
+	db.query.usersTable.findFirst({ where: eq(usersTable.email, email) });
 
 const findSessionByRawToken = async (rawToken: string) =>
-	testDb.query.sessionsTable.findFirst({
+	db.query.sessionsTable.findFirst({
 		where: eq(sessionsTable.tokenHash, await hashRefreshToken(rawToken)),
 	});
 

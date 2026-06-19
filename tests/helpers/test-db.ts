@@ -5,11 +5,11 @@ import { migrate } from "drizzle-orm/pglite/migrator";
 import * as schema from "@/shared/configs/database/schema";
 
 /**
- * A single in-memory PGlite database shared across the test run.
+ * A single in-memory PGlite database used when no DATABASE_URL is set.
  *
- * Integration tests talk to this through the real repositories: `tests/setup.ts`
- * redirects the `@/shared/configs/database` module to this instance, so no live
- * Postgres is required. Production code is untouched.
+ * `tests/setup.ts` redirects the app's `@/shared/configs/database` module to
+ * this instance, so the real repositories run their actual SQL against PGlite —
+ * no live Postgres required. Production code is untouched.
  */
 const client = new PGlite();
 
@@ -19,10 +19,16 @@ export const testDb = drizzle(client, { schema });
 export const migrateTestDb = () =>
 	migrate(testDb, { migrationsFolder: "./drizzle" });
 
-/** Truncates all tables and resets identities — call between tests. */
-export const resetDb = async () => {
-	await testDb.execute(sql`TRUNCATE TABLE users RESTART IDENTITY CASCADE`);
-};
-
-/** Closes the database, releasing the resource so the test process exits cleanly. */
+/** Closes PGlite, releasing the resource so the test process exits cleanly. */
 export const closeTestDb = () => client.close();
+
+/**
+ * Truncates all tables between tests. Resolves the *active* db at call time
+ * (PGlite by default, or the real Postgres in the integration-postgres CI job).
+ */
+export const resetDb = async () => {
+	const { db } = await import("@/shared/configs/database");
+	await db.execute(
+		sql`TRUNCATE TABLE sessions, users RESTART IDENTITY CASCADE`,
+	);
+};
