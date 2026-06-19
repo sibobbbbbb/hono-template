@@ -1,22 +1,21 @@
 import type { usersTable } from "@/shared/configs/database/schema";
 
 /**
- * User model type definitions.
- *
- * This file defines the types for User and NewUser based on the database schema.
- * It uses Drizzle's type inference to ensure type safety when interacting with
- * user data in the database.
- *
- * @see https://orm.drizzle.team/kit-docs/schema-reference
+ * User model type definitions, inferred from the Drizzle schema so they stay
+ * in sync with the database automatically.
  */
 export type User = typeof usersTable.$inferSelect;
 
 export type NewUser = typeof usersTable.$inferInsert;
 
-export type SafeUser = Omit<User, "password" | "refreshToken">;
+/** The set of authorization roles (`"user" | "admin"`). */
+export type UserRole = User["role"];
 
-/** Returns a client-safe view of a user (password and refresh token removed). */
+/** A user without sensitive fields — safe to return to clients. */
+export type SafeUser = Omit<User, "password">;
+
+/** Returns a client-safe view of a user (password removed). */
 export const toSafeUser = (user: User): SafeUser => {
-	const { password: _password, refreshToken: _refreshToken, ...safe } = user;
+	const { password: _password, ...safe } = user;
 	return safe;
 };

@@ -7,15 +7,12 @@ import type { UserRepository } from "@/shared/repositories/user.repository";
  *
  * A factory (not a class) so its dependency is injected explicitly and the
  * service can be unit-tested with a fake repository.
- *
- * @param userRepository The user repository to back the service.
  */
 export const createUserService = (userRepository: UserRepository) => ({
 	/**
 	 * Returns the authenticated user's profile. Sensitive fields are already
 	 * stripped at the data layer by `findSafeById`.
 	 *
-	 * @param id The authenticated user's id.
 	 * @throws NotFoundError if the user does not exist.
 	 */
 	async getMyProfile(id: number): Promise<SafeUser> {
@@ -24,6 +21,11 @@ export const createUserService = (userRepository: UserRepository) => ({
 			throw new NotFoundError("User not found");
 		}
 		return user;
+	},
+
+	/** Lists all users (without password hashes) — for admin use. */
+	listUsers(): Promise<SafeUser[]> {
+		return userRepository.findAllSafe();
 	},
 });
 

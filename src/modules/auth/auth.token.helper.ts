@@ -1,29 +1,26 @@
-import { sign, verify } from "hono/jwt";
+import { sign } from "hono/jwt";
 import { env } from "@/shared/configs/environment";
-import { ForbiddenError } from "@/shared/exceptions/api-error";
+import type { UserRole } from "@/shared/models/user.model";
 import { parseJwtExpiresIn } from "@/shared/utils/parse-jwt-expires-in";
 
-/**
- * Define the type for payload that will be included in the token.
- */
-export type TokenPayload = {
+/** Claims carried by the short-lived access token. */
+export type AccessTokenPayload = {
 	/** Subject — the user id as a string, per the JWT spec (RFC 7519). */
 	sub: string;
 	name: string;
+	role: UserRole;
 };
 
 /**
- * Generates an access token and a refresh token.
+ * Signs a short-lived access JWT carrying the user's identity and role.
  *
- * Each token carries a unique `jti` (token id) so that two tokens minted for
- * the same user within the same second are still distinct — which is what
- * makes refresh-token rotation and reuse-detection reliable.
- *
- * @param payload Data to be included in the token (sub, name).
- * @returns Object containing accessToken and refreshToken.
+ * A unique `jti` is included so two tokens minted in the same second still
+ * differ.
  */
-export const generateTokens = async (payload: TokenPayload) => {
-	const accessToken = await sign(
+export const generateAccessToken = (
+	payload: AccessTokenPayload,
+): Promise<string> =>
+	sign(
 		{
 			...payload,
 			jti: crypto.randomUUID(),
@@ -33,49 +30,20 @@ export const generateTokens = async (payload: TokenPayload) => {
 		env.JWT_SECRET,
 	);
 
-	const refreshToken = await sign(
-		{
-			...payload,
-			jti: crypto.randomUUID(),
-			exp:
-				Math.floor(Date.now() / 1000) +
-				parseJwtExpiresIn(env.JWT_REFRESH_EXPIRES_IN),
-		},
-		env.JWT_REFRESH_SECRET,
-	);
-
-	return { accessToken, refreshToken };
-};
-
 /**
- * Verifies a refresh token.
- * @param token Refresh token to be verified.
- * @returns A promise that resolves to the token payload if valid.
- * @throws {ForbiddenError} If token is invalid or expired.
+ * Generates a high-entropy, opaque refresh token (256 bits, hex-encoded).
+ *
+ * It is never a JWT: only its hash is stored server-side, so refresh tokens are
+ * revocable per session.
  */
-export const verifyRefreshToken = async (
-	token: string,
-): Promise<TokenPayload> => {
-	try {
-		return (await verify(
-			token,
-			env.JWT_REFRESH_SECRET,
-		)) as unknown as TokenPayload;
-	} catch (_error) {
-		throw new ForbiddenError("Refresh token is invalid or expired");
-	}
-};
+export const generateRefreshToken = (): string =>
+	Array.from(crypto.getRandomValues(new Uint8Array(32)))
+		.map((b) => b.toString(16).padStart(2, "0"))
+		.join("");
 
 /**
- * Hashes a refresh token with a full-length SHA-256 digest (Web Crypto).
- *
- * Unlike bcrypt (which silently truncates input at 72 bytes and is designed
- * for slow hashing of *low-entropy* secrets like passwords), a JWT refresh
- * token is already high-entropy — so a fast cryptographic digest over its
- * entire length is both correct and runtime-portable (Bun/Node/edge).
- *
- * @param token Refresh token string to be hashed.
- * @returns A promise that resolves to the hex-encoded SHA-256 digest.
+ * Hashes a refresh token with a full-length SHA-256 digest (Web Crypto) — the
+ * value stored in the sessions table.
  */
 export const hashRefreshToken = async (token: string): Promise<string> => {
 	const digest = await crypto.subtle.digest(

@@ -1,20 +1,34 @@
 {
-  "version": "7",
-  "dialect": "postgresql",
-  "entries": [
-    {
-      "idx": 0,
-      "version": "7",
-      "when": 1754364350819,
-      "tag": "0000_modern_argent",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1754550685714,
-      "tag": "0001_dashing_green_goblin",
-      "breakpoints": true
-    }
-  ]
+	"version": "7",
+	"dialect": "postgresql",
+	"entries": [
+		{
+			"idx": 0,
+			"version": "7",
+			"when": 1754364350819,
+			"tag": "0000_modern_argent",
+			"breakpoints": true
+		},
+		{
+			"idx": 1,
+			"version": "7",
+			"when": 1754550685714,
+			"tag": "0001_dashing_green_goblin",
+			"breakpoints": true
+		},
+		{
+			"idx": 2,
+			"version": "7",
+			"when": 1781838985482,
+			"tag": "0002_bright_mach_iv",
+			"breakpoints": true
+		},
+		{
+			"idx": 3,
+			"version": "7",
+			"when": 1781839013644,
+			"tag": "0003_opposite_reavers",
+			"breakpoints": true
+		}
+	]
 }

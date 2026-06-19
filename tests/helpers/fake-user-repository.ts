@@ -7,7 +7,7 @@ export const makeUser = (overrides: Partial<User> = {}): User => ({
 	name: "Ada Lovelace",
 	email: "ada@example.com",
 	password: "hashed-password",
-	refreshToken: null,
+	role: "user",
 	createdAt: new Date(),
 	...overrides,
 });
@@ -16,9 +16,6 @@ export const makeUser = (overrides: Partial<User> = {}): User => ({
  * An in-memory UserRepository for unit tests — no database, no mocking
  * framework. Because services are factories that take the repository as an
  * argument, you simply pass this in to test business logic in isolation.
- *
- * @param seed Optional users to start with.
- * @returns The repository plus the backing `users` array for assertions.
  */
 export const createFakeUserRepository = (seed: User[] = []) => {
 	const users: User[] = [...seed];
@@ -26,12 +23,7 @@ export const createFakeUserRepository = (seed: User[] = []) => {
 
 	const repository: UserRepository = {
 		async create(data: NewUser): Promise<User> {
-			const user = makeUser({
-				...data,
-				id: nextId++,
-				refreshToken: data.refreshToken ?? null,
-				createdAt: new Date(),
-			});
+			const user = makeUser({ ...data, id: nextId++, createdAt: new Date() });
 			users.push(user);
 			return user;
 		},
@@ -44,16 +36,11 @@ export const createFakeUserRepository = (seed: User[] = []) => {
 		async findSafeById(id: number): Promise<SafeUser | undefined> {
 			const user = users.find((u) => u.id === id);
 			if (!user) return undefined;
-			const {
-				password: _password,
-				refreshToken: _refreshToken,
-				...safe
-			} = user;
+			const { password: _password, ...safe } = user;
 			return safe;
 		},
-		async updateRefreshToken(id: number, token: string | null) {
-			const user = users.find((u) => u.id === id);
-			if (user) user.refreshToken = token;
+		async findAllSafe(): Promise<SafeUser[]> {
+			return users.map(({ password: _password, ...safe }) => safe);
 		},
 	};
 

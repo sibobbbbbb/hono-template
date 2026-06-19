@@ -1,4 +1,4 @@
-export {};
+import type { UserRole } from "@/shared/models/user.model";
 
 /**
  * Augments Hono's context variable map so `c.get("jwtPayload")` is typed
@@ -10,6 +10,7 @@ declare module "hono" {
 		jwtPayload: {
 			sub: string;
 			name: string;
+			role: UserRole;
 		};
 	}
 }

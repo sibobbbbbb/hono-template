@@ -12,6 +12,7 @@ import { authMiddleware } from "@/shared/middlewares/auth.middleware";
 import { authLimiter } from "@/shared/middlewares/rate-limiter.middleware";
 import { jsonValidator } from "@/shared/middlewares/validator";
 import { toSafeUser } from "@/shared/models/user.model";
+import { SessionRepository } from "@/shared/repositories/session.repository";
 import { UserRepository } from "@/shared/repositories/user.repository";
 import { sendSuccess } from "@/shared/utils/api-response";
 import {
@@ -27,7 +28,10 @@ import {
  * (yielding a typed `c.req.valid("json")`) while `describeRoute` documents
  * each endpoint for the OpenAPI spec.
  */
-const authService = createAuthService(new UserRepository());
+const authService = createAuthService(
+	new UserRepository(),
+	new SessionRepository(),
+);
 
 const authRouter = new Hono()
 	.post(
@@ -76,12 +80,12 @@ const authRouter = new Hono()
 	.post(
 		"/refresh",
 		describeRoute({
-			description: "Rotate tokens using the refresh cookie.",
+			description: "Rotate the session using the refresh cookie.",
 			tags: ["Auth"],
 			responses: {
 				200: { description: "Token refreshed" },
 				401: { description: "Missing refresh token" },
-				403: { description: "Invalid or reused refresh token" },
+				403: { description: "Invalid, expired, or reused refresh token" },
 			},
 		}),
 		async (c) => {
@@ -100,7 +104,7 @@ const authRouter = new Hono()
 	.post(
 		"/logout",
 		describeRoute({
-			description: "Revoke the refresh token.",
+			description: "Revoke the current session.",
 			tags: ["Auth"],
 			security: [{ bearerAuth: [] }],
 			responses: {
@@ -110,8 +114,10 @@ const authRouter = new Hono()
 		}),
 		authMiddleware,
 		async (c) => {
-			const { sub } = c.get("jwtPayload");
-			await authService.logout(Number(sub));
+			const token = getCookie(c, env.JWT_REFRESH_COOKIE_NAME);
+			if (token) {
+				await authService.logout(token);
+			}
 			clearRefreshTokenCookie(c);
 			return sendSuccess(c, 200, "Logout successful");
 		},

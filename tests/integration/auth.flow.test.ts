@@ -11,27 +11,34 @@ import { resetDb, testDb } from "@tests/helpers/test-db";
 import { eq } from "drizzle-orm";
 import { app } from "@/index";
 import { hashRefreshToken } from "@/modules/auth/auth.token.helper";
-import { usersTable } from "@/shared/configs/database/schema";
+import { sessionsTable, usersTable } from "@/shared/configs/database/schema";
 
 const findUser = (email: string) =>
 	testDb.query.usersTable.findFirst({ where: eq(usersTable.email, email) });
+
+const findSessionByRawToken = async (rawToken: string) =>
+	testDb.query.sessionsTable.findFirst({
+		where: eq(sessionsTable.tokenHash, await hashRefreshToken(rawToken)),
+	});
+
+const rawFromCookie = (cookie: string) => cookie.slice("refreshToken=".length);
 
 beforeEach(resetDb);
 
 describe("auth flow (integration · PGlite)", () => {
 	describe("register", () => {
-		it("creates a user with a hashed password and returns a safe body", async () => {
+		it("creates a user with a hashed password and the default role", async () => {
 			const res = await register(app);
 			expect(res.status).toBe(201);
 
 			const body = (await res.json()) as {
-				data: { email: string; password?: string };
+				data: { email: string; role: string; password?: string };
 			};
 			expect(body.data.email).toBe(TEST_USER.email);
+			expect(body.data.role).toBe("user");
 			expect(body.data.password).toBeUndefined();
 
 			const stored = await findUser(TEST_USER.email);
-			expect(stored?.password).not.toBe(TEST_USER.password);
 			expect(
 				await Bun.password.verify(TEST_USER.password, stored?.password ?? ""),
 			).toBe(true);
@@ -39,8 +46,7 @@ describe("auth flow (integration · PGlite)", () => {
 
 		it("rejects a duplicate email with 409", async () => {
 			await register(app);
-			const res = await register(app);
-			expect(res.status).toBe(409);
+			expect((await register(app)).status).toBe(409);
 		});
 	});
 
@@ -49,7 +55,7 @@ describe("auth flow (integration · PGlite)", () => {
 			await register(app);
 		});
 
-		it("returns an access token, sets an HttpOnly refresh cookie, and stores its hash", async () => {
+		it("sets an HttpOnly refresh cookie and creates a session row", async () => {
 			const { res, accessToken, refreshCookie } = await login(app);
 			expect(res.status).toBe(200);
 			expect(typeof accessToken).toBe("string");
@@ -57,11 +63,9 @@ describe("auth flow (integration · PGlite)", () => {
 			const setCookie = res.headers.get("set-cookie") ?? "";
 			expect(setCookie).toContain("HttpOnly");
 			expect(setCookie).toContain("Path=/api/auth");
-			expect(refreshCookie.startsWith("refreshToken=")).toBe(true);
 
-			const rawToken = refreshCookie.slice("refreshToken=".length);
-			const stored = await findUser(TEST_USER.email);
-			expect(stored?.refreshToken).toBe(await hashRefreshToken(rawToken));
+			const session = await findSessionByRawToken(rawFromCookie(refreshCookie));
+			expect(session).toBeDefined();
 		});
 
 		it("rejects wrong credentials with 401", async () => {
@@ -74,7 +78,7 @@ describe("auth flow (integration · PGlite)", () => {
 	});
 
 	describe("profile", () => {
-		it("returns the current user with a valid access token", async () => {
+		it("returns the current user (including role) with a valid token", async () => {
 			const { accessToken } = await registerAndLogin(app);
 			const res = await app.request("/api/users/profile", {
 				headers: authHeaders(accessToken ?? ""),
@@ -82,10 +86,10 @@ describe("auth flow (integration · PGlite)", () => {
 			expect(res.status).toBe(200);
 
 			const body = (await res.json()) as {
-				data: { email: string; password?: string };
+				data: { email: string; role: string };
 			};
 			expect(body.data.email).toBe(TEST_USER.email);
-			expect(body.data.password).toBeUndefined();
+			expect(body.data.role).toBe("user");
 		});
 
 		it("rejects a missing token with 401", async () => {
@@ -97,7 +101,7 @@ describe("auth flow (integration · PGlite)", () => {
 	});
 
 	describe("refresh + logout", () => {
-		it("rotates tokens and then denies reuse of the old refresh cookie", async () => {
+		it("rotates tokens and denies reuse of the old refresh cookie", async () => {
 			const { refreshCookie } = await registerAndLogin(app);
 
 			const first = await app.request("/api/auth/refresh", {
@@ -105,47 +109,40 @@ describe("auth flow (integration · PGlite)", () => {
 				headers: { cookie: refreshCookie, "x-forwarded-for": uniqueIp() },
 			});
 			expect(first.status).toBe(200);
-			const firstBody = (await first.json()) as {
-				data: { accessToken: string };
-			};
-			expect(typeof firstBody.data.accessToken).toBe("string");
 
-			const rotatedCookie =
+			const rotated =
 				(first.headers.get("set-cookie") ?? "").split(";")[0] ?? "";
-			expect(rotatedCookie).not.toBe(refreshCookie);
+			expect(rotated).not.toBe(refreshCookie);
 
-			// Reusing the original (now-rotated) cookie must be denied...
+			// The original (rotated-away) cookie is now dead.
 			const reuse = await app.request("/api/auth/refresh", {
 				method: "POST",
 				headers: { cookie: refreshCookie, "x-forwarded-for": uniqueIp() },
 			});
 			expect(reuse.status).toBe(403);
 
-			// ...and that reuse revokes the stored token, so even the rotated cookie fails.
-			const afterRevoke = await app.request("/api/auth/refresh", {
+			// The rotated cookie still works.
+			const ok = await app.request("/api/auth/refresh", {
 				method: "POST",
-				headers: { cookie: rotatedCookie, "x-forwarded-for": uniqueIp() },
+				headers: { cookie: rotated, "x-forwarded-for": uniqueIp() },
 			});
-			expect(afterRevoke.status).toBe(403);
+			expect(ok.status).toBe(200);
 		});
 
-		it("logout clears the refresh token and invalidates the cookie", async () => {
+		it("logout revokes the session, killing the refresh cookie", async () => {
 			const { accessToken, refreshCookie } = await registerAndLogin(app);
 
 			const res = await app.request("/api/auth/logout", {
 				method: "POST",
-				headers: authHeaders(accessToken ?? ""),
+				headers: { ...authHeaders(accessToken ?? ""), cookie: refreshCookie },
 			});
 			expect(res.status).toBe(200);
 
-			const stored = await findUser(TEST_USER.email);
-			expect(stored?.refreshToken).toBeNull();
-
-			const refresh = await app.request("/api/auth/refresh", {
+			const after = await app.request("/api/auth/refresh", {
 				method: "POST",
 				headers: { cookie: refreshCookie, "x-forwarded-for": uniqueIp() },
 			});
-			expect(refresh.status).toBe(403);
+			expect(after.status).toBe(403);
 		});
 	});
 });

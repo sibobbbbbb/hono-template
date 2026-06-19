@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it } from "bun:test";
+import { createFakeSessionRepository } from "@tests/helpers/fake-session-repository";
 import { createFakeUserRepository } from "@tests/helpers/fake-user-repository";
+import { decode } from "hono/jwt";
 import { createAuthService } from "@/modules/auth/auth.service";
 import { hashRefreshToken } from "@/modules/auth/auth.token.helper";
 import {
@@ -7,7 +9,7 @@ import {
 	ForbiddenError,
 	UnauthorizedError,
 } from "@/shared/exceptions/api-error";
-import type { User } from "@/shared/models/user.model";
+import type { Session } from "@/shared/models/session.model";
 
 const credentials = {
 	name: "Ada",
@@ -16,22 +18,24 @@ const credentials = {
 };
 
 describe("createAuthService", () => {
-	let users: User[];
+	let sessions: Session[];
 	let service: ReturnType<typeof createAuthService>;
 
 	beforeEach(() => {
-		const fake = createFakeUserRepository();
-		users = fake.users;
-		service = createAuthService(fake.repository);
+		const users = createFakeUserRepository();
+		const sess = createFakeSessionRepository();
+		sessions = sess.sessions;
+		service = createAuthService(users.repository, sess.repository);
 	});
 
 	describe("register", () => {
-		it("hashes the password and never stores plaintext", async () => {
+		it("hashes the password and defaults the role to 'user'", async () => {
 			const user = await service.register(credentials);
 			expect(user.password).not.toBe(credentials.password);
 			expect(
 				await Bun.password.verify(credentials.password, user.password),
 			).toBe(true);
+			expect(user.role).toBe("user");
 		});
 
 		it("rejects a duplicate email", async () => {
@@ -47,14 +51,19 @@ describe("createAuthService", () => {
 			await service.register(credentials);
 		});
 
-		it("returns a token pair and stores the refresh token HASHED", async () => {
+		it("embeds the role in the access token and stores a hashed session", async () => {
 			const { accessToken, refreshToken } = await service.login({
 				email: credentials.email,
 				password: credentials.password,
 			});
 			expect(typeof accessToken).toBe("string");
 			expect(typeof refreshToken).toBe("string");
-			expect(users[0]?.refreshToken).toBe(await hashRefreshToken(refreshToken));
+
+			const { payload } = decode(accessToken);
+			expect(payload.role).toBe("user");
+
+			expect(sessions).toHaveLength(1);
+			expect(sessions[0]?.tokenHash).toBe(await hashRefreshToken(refreshToken));
 		});
 
 		it("rejects a wrong password", async () => {
@@ -81,31 +90,34 @@ describe("createAuthService", () => {
 			}));
 		});
 
-		it("rotates the token pair on a valid refresh", async () => {
-			const storedBefore = users[0]?.refreshToken;
+		it("rotates the session: old token invalid, exactly one live session", async () => {
 			const result = await service.refreshToken(refreshToken);
 			expect(result.refreshToken).not.toBe(refreshToken);
-			expect(users[0]?.refreshToken).not.toBe(storedBefore);
+			expect(sessions).toHaveLength(1);
+			expect(sessions[0]?.tokenHash).toBe(
+				await hashRefreshToken(result.refreshToken),
+			);
 		});
 
-		it("denies and revokes on reuse of a rotated token", async () => {
+		it("denies reuse of a rotated token", async () => {
 			await service.refreshToken(refreshToken);
 			await expect(service.refreshToken(refreshToken)).rejects.toBeInstanceOf(
 				ForbiddenError,
 			);
-			expect(users[0]?.refreshToken).toBeNull();
 		});
 	});
 
 	describe("logout", () => {
-		it("clears the stored refresh token", async () => {
-			const user = await service.register(credentials);
-			await service.login({
+		it("revokes the session for the given refresh token", async () => {
+			await service.register(credentials);
+			const { refreshToken } = await service.login({
 				email: credentials.email,
 				password: credentials.password,
 			});
-			await service.logout(user.id);
-			expect(users[0]?.refreshToken).toBeNull();
+			expect(sessions).toHaveLength(1);
+
+			await service.logout(refreshToken);
+			expect(sessions).toHaveLength(0);
 		});
 	});
 });
