@@ -5,8 +5,8 @@ import { app } from "@/index";
 beforeEach(resetDb);
 
 describe("http layer (integration)", () => {
-	it("GET /api/health -> 200 healthy payload", async () => {
-		const res = await app.request("/api/health");
+	it("GET /api/v1/health -> 200 healthy payload", async () => {
+		const res = await app.request("/api/v1/health");
 		expect(res.status).toBe(200);
 		expect(await res.json()).toEqual({
 			status: "ok",
@@ -14,8 +14,8 @@ describe("http layer (integration)", () => {
 		});
 	});
 
-	it("GET /api/health/ready -> 200 when the database is reachable", async () => {
-		const res = await app.request("/api/health/ready");
+	it("GET /api/v1/health/ready -> 200 when the database is reachable", async () => {
+		const res = await app.request("/api/v1/health/ready");
 		expect(res.status).toBe(200);
 		expect(await res.json()).toEqual({ status: "ready" });
 	});
@@ -27,12 +27,12 @@ describe("http layer (integration)", () => {
 	});
 
 	it("unknown route -> 404", async () => {
-		const res = await app.request("/api/does-not-exist");
+		const res = await app.request("/api/v1/does-not-exist");
 		expect(res.status).toBe(404);
 	});
 
 	it("invalid body -> 400 validation envelope", async () => {
-		const res = await app.request("/api/auth/register", {
+		const res = await app.request("/api/v1/auth/register", {
 			method: "POST",
 			headers: {
 				"content-type": "application/json",
@@ -53,7 +53,7 @@ describe("http layer (integration)", () => {
 	});
 
 	it("protected route without a token -> 401", async () => {
-		const res = await app.request("/api/users/profile", {
+		const res = await app.request("/api/v1/users/profile", {
 			headers: { "x-forwarded-for": "10.9.9.8" },
 		});
 		expect(res.status).toBe(401);
@@ -62,7 +62,7 @@ describe("http layer (integration)", () => {
 	});
 
 	it("sets security headers (secureHeaders middleware)", async () => {
-		const res = await app.request("/api/health");
+		const res = await app.request("/api/v1/health");
 		expect(res.headers.get("x-content-type-options")).toBe("nosniff");
 	});
 
@@ -70,7 +70,7 @@ describe("http layer (integration)", () => {
 		const ip = "203.0.113.7"; // fixed IP -> a dedicated, shared bucket
 		const statuses: number[] = [];
 		for (let i = 0; i < 6; i++) {
-			const res = await app.request("/api/auth/login", {
+			const res = await app.request("/api/v1/auth/login", {
 				method: "POST",
 				headers: { "content-type": "application/json", "x-forwarded-for": ip },
 				body: JSON.stringify({
@@ -95,10 +95,10 @@ describe("http layer (integration)", () => {
 			>;
 		};
 		expect(spec.openapi).toBeDefined();
-		expect(spec.paths?.["/api/auth/login"]).toBeDefined();
+		expect(spec.paths?.["/api/v1/auth/login"]).toBeDefined();
 		// The request body schema is documented (derived from the Zod schema).
 		expect(
-			spec.paths?.["/api/auth/register"]?.post?.requestBody?.content?.[
+			spec.paths?.["/api/v1/auth/register"]?.post?.requestBody?.content?.[
 				"application/json"
 			],
 		).toBeDefined();

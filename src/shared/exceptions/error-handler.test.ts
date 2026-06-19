@@ -14,6 +14,7 @@ describe("errorHandler", () => {
 		expect(res.status).toBe(500);
 		expect(await res.json()).toEqual({
 			success: false,
+			code: "INTERNAL_SERVER_ERROR",
 			message: "Internal Server Error",
 		});
 	});
@@ -26,6 +27,10 @@ describe("errorHandler", () => {
 
 		const res = await app.request("/bad");
 		expect(res.status).toBe(400);
-		expect(await res.json()).toEqual({ success: false, message: "nope" });
+		expect(await res.json()).toEqual({
+			success: false,
+			code: "BAD_REQUEST",
+			message: "nope",
+		});
 	});
 });

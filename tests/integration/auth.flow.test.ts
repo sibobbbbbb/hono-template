@@ -63,7 +63,7 @@ describe("auth flow (integration · PGlite)", () => {
 
 			const setCookie = res.headers.get("set-cookie") ?? "";
 			expect(setCookie).toContain("HttpOnly");
-			expect(setCookie).toContain("Path=/api/auth");
+			expect(setCookie).toContain("Path=/api/v1/auth");
 
 			const session = await findSessionByRawToken(rawFromCookie(refreshCookie));
 			expect(session).toBeDefined();
@@ -81,7 +81,7 @@ describe("auth flow (integration · PGlite)", () => {
 	describe("profile", () => {
 		it("returns the current user (including role) with a valid token", async () => {
 			const { accessToken } = await registerAndLogin(app);
-			const res = await app.request("/api/users/profile", {
+			const res = await app.request("/api/v1/users/profile", {
 				headers: authHeaders(accessToken ?? ""),
 			});
 			expect(res.status).toBe(200);
@@ -94,7 +94,7 @@ describe("auth flow (integration · PGlite)", () => {
 		});
 
 		it("rejects a missing token with 401", async () => {
-			const res = await app.request("/api/users/profile", {
+			const res = await app.request("/api/v1/users/profile", {
 				headers: { "x-forwarded-for": uniqueIp() },
 			});
 			expect(res.status).toBe(401);
@@ -105,7 +105,7 @@ describe("auth flow (integration · PGlite)", () => {
 		it("rotates tokens and denies reuse of the old refresh cookie", async () => {
 			const { refreshCookie } = await registerAndLogin(app);
 
-			const first = await app.request("/api/auth/refresh", {
+			const first = await app.request("/api/v1/auth/refresh", {
 				method: "POST",
 				headers: { cookie: refreshCookie, "x-forwarded-for": uniqueIp() },
 			});
@@ -116,14 +116,14 @@ describe("auth flow (integration · PGlite)", () => {
 			expect(rotated).not.toBe(refreshCookie);
 
 			// The original (rotated-away) cookie is now dead.
-			const reuse = await app.request("/api/auth/refresh", {
+			const reuse = await app.request("/api/v1/auth/refresh", {
 				method: "POST",
 				headers: { cookie: refreshCookie, "x-forwarded-for": uniqueIp() },
 			});
 			expect(reuse.status).toBe(403);
 
 			// The rotated cookie still works.
-			const ok = await app.request("/api/auth/refresh", {
+			const ok = await app.request("/api/v1/auth/refresh", {
 				method: "POST",
 				headers: { cookie: rotated, "x-forwarded-for": uniqueIp() },
 			});
@@ -133,13 +133,13 @@ describe("auth flow (integration · PGlite)", () => {
 		it("logout revokes the session, killing the refresh cookie", async () => {
 			const { accessToken, refreshCookie } = await registerAndLogin(app);
 
-			const res = await app.request("/api/auth/logout", {
+			const res = await app.request("/api/v1/auth/logout", {
 				method: "POST",
 				headers: { ...authHeaders(accessToken ?? ""), cookie: refreshCookie },
 			});
 			expect(res.status).toBe(200);
 
-			const after = await app.request("/api/auth/refresh", {
+			const after = await app.request("/api/v1/auth/refresh", {
 				method: "POST",
 				headers: { cookie: refreshCookie, "x-forwarded-for": uniqueIp() },
 			});

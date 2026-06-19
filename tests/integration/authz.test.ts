@@ -7,10 +7,10 @@ import { usersTable } from "@/shared/configs/database/schema";
 
 beforeEach(resetDb);
 
-describe("authorization (requireRole · /api/users)", () => {
+describe("authorization (requireRole · /api/v1/users)", () => {
 	it("denies a regular user from the admin-only route with 403", async () => {
 		const { accessToken } = await registerAndLogin(app);
-		const res = await app.request("/api/users", {
+		const res = await app.request("/api/v1/users", {
 			headers: authHeaders(accessToken ?? ""),
 		});
 		expect(res.status).toBe(403);
@@ -31,7 +31,7 @@ describe("authorization (requireRole · /api/users)", () => {
 			email: "root@example.com",
 			password: "supersecret",
 		});
-		const res = await app.request("/api/users", {
+		const res = await app.request("/api/v1/users", {
 			headers: authHeaders(accessToken ?? ""),
 		});
 		expect(res.status).toBe(200);

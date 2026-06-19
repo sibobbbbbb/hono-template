@@ -6,13 +6,9 @@ import { ApiError } from "./api-error";
 /**
  * Global error handler for the Hono application.
  *
- * Catches thrown errors and formats them into a standardized JSON response.
- * Logging is severity-aware: 5xx are real server faults (logged at `error`
- * with a stack trace), while 4xx are expected client errors (logged at `warn`
- * without the stack-trace noise) — preventing log spam and amplification.
- *
- * @param err The error object.
- * @param c The Hono context.
+ * Produces a standardized JSON envelope `{ success: false, code, message, ... }`
+ * where `code` is a stable, machine-readable identifier. Logging is
+ * severity-aware: 5xx at `error` (with stack), 4xx at `warn` (no stack).
  */
 export const errorHandler = (err: Error, c: Context) => {
 	const status =
@@ -40,16 +36,27 @@ export const errorHandler = (err: Error, c: Context) => {
 	}
 
 	if (err instanceof HTTPException) {
-		return c.json({ success: false, message: err.message }, err.status);
+		return c.json(
+			{ success: false, code: "HTTP_EXCEPTION", message: err.message },
+			err.status,
+		);
 	}
 
 	if (err instanceof ApiError) {
+		const base = { success: false, code: err.code };
 		const body =
 			typeof err.payload === "string"
-				? { success: false, message: err.payload }
-				: { success: false, ...err.payload };
+				? { ...base, message: err.payload }
+				: { ...base, ...err.payload };
 		return c.json(body, err.statusCode);
 	}
 
-	return c.json({ success: false, message: "Internal Server Error" }, 500);
+	return c.json(
+		{
+			success: false,
+			code: "INTERNAL_SERVER_ERROR",
+			message: "Internal Server Error",
+		},
+		500,
+	);
 };

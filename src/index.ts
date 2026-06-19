@@ -35,7 +35,7 @@ const app = new Hono()
 	.use("*", cors({ origin: corsOrigin, credentials: env.CORS_ORIGIN !== "*" }))
 	.use("*", bodyLimit({ maxSize: 100 * 1024 })) // 100 KB request-body cap
 	.use("*", pinoLogger({ pino: logger }))
-	.route("/api", api)
+	.route("/api/v1", api)
 	.get("/", (c) => c.text("Welcome to Hono API!"));
 
 // OpenAPI spec (generated from describeRoute annotations) + Scalar docs UI.

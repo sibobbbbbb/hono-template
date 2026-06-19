@@ -29,25 +29,25 @@ const jsonHeaders = (ip: string): Record<string, string> => ({
 	"x-forwarded-for": ip,
 });
 
-/** POST /api/auth/register */
+/** POST /api/v1/auth/register */
 export const register = (
 	app: TestApp,
 	body: object = TEST_USER,
 	ip: string = uniqueIp(),
 ) =>
-	app.request("/api/auth/register", {
+	app.request("/api/v1/auth/register", {
 		method: "POST",
 		headers: jsonHeaders(ip),
 		body: JSON.stringify(body),
 	});
 
-/** POST /api/auth/login — returns the response, access token, and refresh cookie. */
+/** POST /api/v1/auth/login — returns the response, access token, and refresh cookie. */
 export const login = async (
 	app: TestApp,
 	body: object = { email: TEST_USER.email, password: TEST_USER.password },
 	ip: string = uniqueIp(),
 ) => {
-	const res = await app.request("/api/auth/login", {
+	const res = await app.request("/api/v1/auth/login", {
 		method: "POST",
 		headers: jsonHeaders(ip),
 		body: JSON.stringify(body),

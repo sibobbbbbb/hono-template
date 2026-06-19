@@ -14,85 +14,70 @@ type ErrorPayload = string | Record<string, unknown>;
 
 /**
  * Base class for all API errors that we can "catch" and format.
- * All specific errors will extend this class.
+ *
+ * Each error carries a stable, machine-readable `code` (e.g. `"NOT_FOUND"`) in
+ * addition to the HTTP status, so clients can branch on it without parsing
+ * human messages.
  */
 export class ApiError extends Error {
 	public readonly statusCode: AppErrorStatusCode;
 	public readonly payload: ErrorPayload;
+	public readonly code: string;
 
-	constructor(payload: ErrorPayload, statusCode: AppErrorStatusCode) {
+	constructor(
+		payload: ErrorPayload,
+		statusCode: AppErrorStatusCode,
+		code: string,
+	) {
 		super(typeof payload === "string" ? payload : JSON.stringify(payload));
 		this.payload = payload;
 		this.statusCode = statusCode;
+		this.code = code;
 	}
 }
 
 // --- CLIENT ERROR (4xx) CLASSES ---
 
-/**
- * 400 Bad Request
- * Used when the server cannot process the request due to incorrect syntax from the client side.
- * Example: Invalid JSON body.
- */
+/** 400 Bad Request — e.g. invalid body / failed validation. */
 export class BadRequestError extends ApiError {
 	constructor(payload: ErrorPayload = "Bad Request") {
-		super(payload, 400);
+		super(payload, 400, "BAD_REQUEST");
 	}
 }
 
-/**
- * 401 Unauthorized
- * Used when the request requires authentication, but it's not provided or failed.
- * Example: JWT token is missing or invalid.
- */
+/** 401 Unauthorized — authentication missing or invalid. */
 export class UnauthorizedError extends ApiError {
 	constructor(payload: ErrorPayload = "Unauthorized") {
-		super(payload, 401);
+		super(payload, 401, "UNAUTHORIZED");
 	}
 }
 
-/**
- * 403 Forbidden
- * Used when the server understands the request, but refuses to execute it.
- * User is authenticated, but doesn't have access permission.
- * Example: Regular user trying to access admin menu.
- */
+/** 403 Forbidden — authenticated but not permitted. */
 export class ForbiddenError extends ApiError {
 	constructor(payload: ErrorPayload = "Forbidden") {
-		super(payload, 403);
+		super(payload, 403, "FORBIDDEN");
 	}
 }
 
-/**
- * 404 Not Found
- * Used when the requested resource cannot be found on the server.
- * Example: Looking for a user with a non-existent ID.
- */
+/** 404 Not Found — the requested resource does not exist. */
 export class NotFoundError extends ApiError {
 	constructor(payload: ErrorPayload = "Not Found") {
-		super(payload, 404);
+		super(payload, 404, "NOT_FOUND");
 	}
 }
 
-/**
- * 409 Conflict
- * Used when the request cannot be processed due to a conflict with the current state of the resource.
- * Example: Trying to register with an email that's already in use.
- */
+/** 409 Conflict — e.g. registering an already-used email. */
 export class ConflictError extends ApiError {
 	constructor(payload: ErrorPayload = "Conflict") {
-		super(payload, 409);
+		super(payload, 409, "CONFLICT");
 	}
 }
 
 // --- SERVER ERROR (5xx) CLASSES ---
 
-/**
- * 500 Internal Server Error
- * General error for unexpected problems on the server side.
- */
+/** 500 Internal Server Error — unexpected server-side problem. */
 export class InternalServerError extends ApiError {
 	constructor(payload: ErrorPayload = "Internal Server Error") {
-		super(payload, 500);
+		super(payload, 500, "INTERNAL_SERVER_ERROR");
 	}
 }

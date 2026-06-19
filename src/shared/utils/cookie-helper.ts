@@ -17,7 +17,7 @@ const cookieOptions = {
 	httpOnly: true,
 	secure: env.NODE_ENV === "production",
 	sameSite: "Strict" as const,
-	path: "/api/auth",
+	path: "/api/v1/auth",
 };
 
 /**
