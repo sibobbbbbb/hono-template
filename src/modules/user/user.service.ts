@@ -23,9 +23,17 @@ export const createUserService = (userRepository: UserRepository) => ({
 		return user;
 	},
 
-	/** Lists all users (without password hashes) — for admin use. */
-	listUsers(): Promise<SafeUser[]> {
-		return userRepository.findAllSafe();
+	/** Lists active users (admin), paginated — returns the page plus the total. */
+	async listUsers(
+		page: number,
+		limit: number,
+	): Promise<{ data: SafeUser[]; total: number }> {
+		const offset = (page - 1) * limit;
+		const [data, total] = await Promise.all([
+			userRepository.findAllSafe(limit, offset),
+			userRepository.countActive(),
+		]);
+		return { data, total };
 	},
 });
 

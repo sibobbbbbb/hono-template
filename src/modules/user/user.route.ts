@@ -6,6 +6,7 @@ import { generalApiLimiter } from "@/shared/middlewares/rate-limiter.middleware"
 import { requireRole } from "@/shared/middlewares/require-role";
 import { UserRepository } from "@/shared/repositories/user.repository";
 import { sendSuccess } from "@/shared/utils/api-response";
+import { getPagination, paginationMeta } from "@/shared/utils/pagination";
 
 /**
  * @file User routes (`/api/users`).
@@ -38,19 +39,26 @@ const userRouter = new Hono()
 	.get(
 		"/",
 		describeRoute({
-			description: "List all users (admin only).",
+			description: "List all users (admin only). Supports ?page and ?limit.",
 			tags: ["Users"],
 			security: [{ bearerAuth: [] }],
 			responses: {
-				200: { description: "All users" },
+				200: { description: "A page of users with pagination metadata" },
 				401: { description: "Unauthorized" },
 				403: { description: "Forbidden — admin role required" },
 			},
 		}),
 		requireRole("admin"),
 		async (c) => {
-			const users = await userService.listUsers();
-			return sendSuccess(c, 200, "Users fetched successfully", users);
+			const { page, limit } = getPagination(c);
+			const { data, total } = await userService.listUsers(page, limit);
+			return sendSuccess(
+				c,
+				200,
+				"Users fetched successfully",
+				data,
+				paginationMeta(page, limit, total),
+			);
 		},
 	);
 

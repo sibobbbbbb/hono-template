@@ -17,6 +17,12 @@ export const usersTable = pgTable("users", {
 	password: text("password").notNull(),
 	role: userRole("role").notNull().default("user"),
 	createdAt: timestamp("created_at").defaultNow().notNull(),
+	updatedAt: timestamp("updated_at")
+		.defaultNow()
+		.notNull()
+		.$onUpdate(() => new Date()),
+	// Soft delete: a non-null value means the row is logically deleted.
+	deletedAt: timestamp("deleted_at"),
 });
 
 /**
