@@ -89,10 +89,19 @@ describe("http layer (integration)", () => {
 		expect(res.status).toBe(200);
 		const spec = (await res.json()) as {
 			openapi?: string;
-			paths?: Record<string, unknown>;
+			paths?: Record<
+				string,
+				{ post?: { requestBody?: { content?: Record<string, unknown> } } }
+			>;
 		};
 		expect(spec.openapi).toBeDefined();
 		expect(spec.paths?.["/api/auth/login"]).toBeDefined();
+		// The request body schema is documented (derived from the Zod schema).
+		expect(
+			spec.paths?.["/api/auth/register"]?.post?.requestBody?.content?.[
+				"application/json"
+			],
+		).toBeDefined();
 	});
 
 	it("serves the Scalar docs UI at /docs", async () => {

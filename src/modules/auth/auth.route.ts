@@ -19,6 +19,7 @@ import {
 	clearRefreshTokenCookie,
 	setRefreshTokenCookie,
 } from "@/shared/utils/cookie-helper";
+import { jsonBody } from "@/shared/utils/openapi";
 
 /**
  * @file Authentication routes (`/api/auth`).
@@ -26,7 +27,7 @@ import {
  * Handlers are defined inline and chained so per-route types accumulate,
  * enabling the typed Hono RPC client. `jsonValidator` performs validation
  * (yielding a typed `c.req.valid("json")`) while `describeRoute` documents
- * each endpoint for the OpenAPI spec.
+ * each endpoint — including the request body — for the OpenAPI spec.
  */
 const authService = createAuthService(
 	new UserRepository(),
@@ -39,6 +40,7 @@ const authRouter = new Hono()
 		describeRoute({
 			description: "Register a new user.",
 			tags: ["Auth"],
+			requestBody: jsonBody(RegisterRequestSchema),
 			responses: {
 				201: { description: "User registered successfully" },
 				400: { description: "Validation failed" },
@@ -63,6 +65,7 @@ const authRouter = new Hono()
 		describeRoute({
 			description: "Log in and receive an access token; sets a refresh cookie.",
 			tags: ["Auth"],
+			requestBody: jsonBody(LoginRequestSchema),
 			responses: {
 				200: { description: "Login successful" },
 				401: { description: "Invalid credentials" },
