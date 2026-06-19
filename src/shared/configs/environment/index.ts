@@ -44,6 +44,14 @@ const envSchema = z.object({
 	// in Redis (consistent across instances) instead of per-process memory.
 	REDIS_URL: z.string().optional(),
 
+	// Observability (OpenTelemetry) — opt-in tracing. Install the @opentelemetry/*
+	// packages, then set OTEL_ENABLED=true and OTEL_EXPORTER_OTLP_ENDPOINT.
+	OTEL_ENABLED: z
+		.string()
+		.default("false")
+		.transform((v) => v === "true" || v === "1"),
+	OTEL_SERVICE_NAME: z.string().default("hono-api"),
+
 	// App Environment
 	NODE_ENV: z
 		.enum(["development", "production", "test"])

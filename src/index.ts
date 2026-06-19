@@ -10,6 +10,7 @@ import api from "@/routes";
 import { closeDb } from "@/shared/configs/database";
 import { env } from "@/shared/configs/environment";
 import { logger } from "@/shared/configs/logger";
+import { initTracing } from "@/shared/configs/observability/tracing";
 import { errorHandler } from "@/shared/exceptions/error-handler";
 
 /**
@@ -69,6 +70,9 @@ export type AppType = typeof app;
 // Bun.serve lets our signal handlers run for graceful shutdown — Bun's
 // auto-serve of a `default` export intercepts SIGTERM itself.
 if (import.meta.main) {
+	// Optional, gated by OTEL_ENABLED — safe no-op otherwise.
+	await initTracing();
+
 	const server = Bun.serve({ fetch: app.fetch, port: env.PORT });
 	logger.info(`Server running at ${server.url}`);
 

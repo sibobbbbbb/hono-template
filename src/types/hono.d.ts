@@ -12,5 +12,7 @@ declare module "hono" {
 			name: string;
 			role: UserRole;
 		};
+		/** Correlation id set by the `requestId()` middleware. */
+		requestId: string;
 	}
 }
