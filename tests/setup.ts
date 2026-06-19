@@ -20,4 +20,14 @@ if (!process.env.DATABASE_URL) {
 	afterAll(async () => {
 		await closeTestDb();
 	});
+} else {
+	// Real-Postgres mode (CI): nothing is mocked, so close the app's own
+	// connection pool after the suite — otherwise Bun exits with code 99
+	// ("dangling resource"). Imported dynamically so the real db module is not
+	// loaded in PGlite mode (where it would be replaced by mock.module above).
+	const { closeDb } = await import("@/shared/configs/database");
+
+	afterAll(async () => {
+		await closeDb();
+	});
 }
