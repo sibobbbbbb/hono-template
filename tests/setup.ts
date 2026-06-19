@@ -29,5 +29,8 @@ if (!process.env.DATABASE_URL) {
 
 	afterAll(async () => {
 		await closeDb();
+		// Importing test-db above eagerly constructs a PGlite instance even in
+		// this mode; close it too so it is not left dangling at exit.
+		await closeTestDb();
 	});
 }
