@@ -48,6 +48,12 @@ jobs:
     env:
       NODE_ENV: test
       DATABASE_URL: postgres://test:test@localhost:5432/test
+      # Required by the env schema (the connection itself uses DATABASE_URL).
+      POSTGRES_USER: test
+      POSTGRES_PASSWORD: test
+      POSTGRES_DB: test
+      JWT_SECRET: ci-only-access-secret-not-for-production
+      JWT_REFRESH_SECRET: ci-only-refresh-secret-not-for-production
     steps:
       - uses: actions/checkout@v4
 
